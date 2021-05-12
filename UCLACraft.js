@@ -4,6 +4,9 @@ import { defs, tiny } from './examples/common.js';
 const { vec3, vec4, color, hex_color, Mat4, Light, Shape, Material, Shader, Texture, Scene } = tiny;
 const { Triangle, Square, Tetrahedron, Windmill, Cube, Subdivision_Sphere } = defs;
 
+import Block from './Block.js';
+
+
 export class UCLACraft_Base extends Scene {
 
     constructor() {                  // constructor(): Scenes begin by populating initial values like the Shapes and Materials they'll need.
@@ -94,11 +97,13 @@ export class UCLACraft extends UCLACraft_Base {
         const blue = hex_color("#1a9ffa"), yellow = hex_color("#fdc03a")
         // Variable model_transform will be a local matrix value that helps us position shapes.
         // It starts over as the identity every single frame - coordinate axes at the origin.
-        let model_transform = Mat4.identity();
+        // let model_transform = Mat4.identity();
 
-        model_transform = model_transform.times(Mat4.translation(0, 0, 0));
-        // Draw the top box:
-        this.shapes.Cube.draw(context, program_state, model_transform, this.materials.plastic.override(blue));
+        // model_transform = model_transform.times(Mat4.translation(0, 0, 0));
+        // // Draw the top box:
+        // this.shapes.Cube.draw(context, program_state, model_transform, this.materials.plastic.override(blue));
+        const block0 = new Block(this.shapes.Cube, vec3(0, 0, 0), this.materials.metal.override({ color: blue }), context, program_state, 0);
+        block0.draw();
 
 
     }
