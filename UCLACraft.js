@@ -6,33 +6,70 @@ const { Triangle, Square, Tetrahedron, Windmill, Cube, Subdivision_Sphere } = de
 
 import Block from './Block.js';
 
+import { BLOCK_SIZE, FLOOR_DIM } from './Constants.js'
+
+
 
 export class UCLACraft_Base extends Scene {
 
     constructor() {                  // constructor(): Scenes begin by populating initial values like the Shapes and Materials they'll need.
         super();
-        this.hover = this.swarm = false;
-        // At the beginning of our program, load one of each of these shape
-        // definitions onto the GPU.  NOTE:  Only do this ONCE per shape it
-        // would be redundant to tell it again.  You should just re-use the
-        // one called "box" more than once in display() to draw multiple cubes.
-        // Don't define more than one blueprint for the same thing here.
+
         this.shapes = {
             Cube: new Cube(),
         };
 
-        // *** Materials: *** Define a shader, and then define materials that use
-        // that shader.  Materials wrap a dictionary of "options" for the shader.
-        // Here we use a Phong shader and the Material stores the scalar
-        // coefficients that appear in the Phong lighting formulas so that the
-        // appearance of particular materials can be tweaked via these numbers.
         const phong = new defs.Phong_Shader();
         this.materials = {
             plastic: new Material(phong,
-                { ambient: .5, diffusivity: .8, specularity: .5, color: color(.9, .5, .9, 1) }),
+                { ambient: .5, diffusivity: .8, specularity: .5, color: color(0.1, 1, 0.1, 1) }),
             metal: new Material(phong,
                 { ambient: .5, diffusivity: .8, specularity: .8, color: color(.9, .5, .9, 1) })
         };
+
+        this.floor = { coordinates: this.getFloorCoordinates(FLOOR_DIM, FLOOR_DIM), coor_x: FLOOR_DIM, coor_z: FLOOR_DIM } //floor: (2*FLOOR_DIM)*(2*FLOOR_DIM)
+        this.occupied_coords = [] //list of vec3 that record coordinates of blocks(both real and pseudo)
+        this.blocks = []//list of Blocks
+        this.next_id = 0 //id counter; increment when a new block is created
+
+
+        //testing blocks
+        this.createBlock(vec3(1, 1, 1));
+        this.createBlock(vec3(1, 2, 1));
+        this.createBlock(vec3(1, 2, 2));
+
+    }
+
+
+    //return a list of vec3 indicating the floor coordinates (all at y=0)
+    getFloorCoordinates(x, z) {
+        let res = new Array((2 * x) * 2 * z)
+        let c = 0
+        for (let i = -x; i < x; i++) {
+            for (let j = -z; j < z; j++) {
+                res[c] = vec3(i, 0, j);
+                c++;
+            }
+        }
+        //console.log(res);
+        return res;
+
+    }
+
+
+    createBlock(coordinates, shape = this.shapes.Cube, material = this.materials.metal) {
+        //check overlap
+        this.occupied_coords.forEach(item => {
+            if (item.equals(coordinates)) {
+                console.log("Failed to place the block");
+                return false; //overlap
+            }
+        });
+
+        this.blocks.push(new Block(shape, coordinates, material, this.next_id)); //coordinates: vec3
+        this.occupied_coords.push(coordinates);
+        this.next_id++;
+        return true
     }
 
     make_control_panel() {
@@ -83,6 +120,7 @@ export class UCLACraft_Base extends Scene {
         const light_position = Mat4.rotation(0, 1, 0, 0).times(vec4(0, -1, 1, 0));
         program_state.lights = [new Light(light_position, color(1, 1, 1, 1), 1000)];
     }
+
 }
 
 
@@ -102,9 +140,22 @@ export class UCLACraft extends UCLACraft_Base {
         // model_transform = model_transform.times(Mat4.translation(0, 0, 0));
         // // Draw the top box:
         // this.shapes.Cube.draw(context, program_state, model_transform, this.materials.plastic.override(blue));
-        const block0 = new Block(this.shapes.Cube, vec3(0, 0, 0), this.materials.metal.override({ color: blue }), context, program_state, 0);
-        block0.draw();
+        this.drawfloor(context, program_state);
+        this.drawBlocks(context, program_state);
 
 
     }
+
+    drawfloor(context, program_state) {
+        let model_transform = Mat4.scale(this.floor.coor_x, 1, this.floor.coor_z);
+        this.shapes.Cube.draw(context, program_state, model_transform, this.materials.plastic);
+    }
+
+    drawBlocks(context, program_state) {
+        this.blocks.forEach(block => {
+            block.draw(context, program_state);
+        });
+    }
+
+
 }
