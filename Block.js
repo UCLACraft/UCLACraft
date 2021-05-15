@@ -36,6 +36,11 @@ export default class Block {
         return this.model_transform;
     }
 
+    setCoord(x, y, z) {
+        this.coord = vec3(x, y, z);
+        this.position = coord_to_position(this.coord);
+    }
+
 
 }
 

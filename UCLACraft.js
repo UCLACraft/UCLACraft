@@ -31,7 +31,7 @@ export class UCLACraft_Base extends Scene {
             metal: new Material(phong,
                 { ambient: .5, diffusivity: .8, specularity: .8, color: color(.9, .5, .9, 1) }),
             selected: new Material(phong,
-                { ambient: .8, diffusivity: 0.1, specularity: 0, color: color(1, 1, 1, 0.5) }),
+                { ambient: .8, diffusivity: 0.1, specularity: 0, color: color(1, 1, 1, 0.2) }),
             outline: new Material(new defs.Basic_Shader()),
         };
 
@@ -43,13 +43,15 @@ export class UCLACraft_Base extends Scene {
 
         this.cursor = undefined; //the block that the mouse is pointing at 
 
-        this.selected = []; //the selected blocks
+        this.selected = []; //the selected blocks TODO
         this.outlines = []; //outlines: an array indicating outlines positions
 
 
         this.state = PLACING; //can be one of two states: PLACING/MODIFYING
 
         this.mouse_control_added = false;
+
+        this.dummyBlock = new Block(this.shapes.Cube, vec3(0, 0, 0)); //a dummy block used for placing blocks on the floor
 
 
 
@@ -67,8 +69,6 @@ export class UCLACraft_Base extends Scene {
     add_mouse_controls(canvas) {
         canvas.addEventListener("click", () => {
             if (this.state === PLACING) {
-                console.log("clicked");
-                console.log(this.outlines);
                 this.outlines.forEach((outline_pos, i) => {
                     this.createBlock(position_to_coord(outline_pos));
                 })
@@ -107,12 +107,33 @@ export class UCLACraft_Base extends Scene {
         return null;
     }
 
+    //modify this.dummy that overlaps with the floor IF the ray goes thru the floor
+    intersectFloor(program_state) {
+        let ray = this.MouseMonitor.ray;
+        let cam_pos = program_state.camera_transform.times(vec4(0, 0, 0, 1)).to3();
+        let t = (1 - cam_pos[1]) / (ray[1]);
+        let pos = cam_pos.plus(ray.times(t));
+        let x_coord = Math.round(position_to_coord(pos)[0]);
+        let z_coord = Math.round(position_to_coord(pos)[2]);
+        if (x_coord < -FLOOR_DIM / 2 || x_coord > FLOOR_DIM / 2 || z_coord < -FLOOR_DIM / 2 || z_coord > FLOOR_DIM / 2) {
+            return false; //out of range
+        }
+
+        this.dummyBlock.setCoord(x_coord, 0, z_coord);
+        return true;
+    }
+
     //returns an array of block positions around the input block 
-    getOutlineCandidates(block) {
+    getOutlineCandidates(block, floor = false) {
         let coordinate = block.coord;
-        let res = [vec3(coordinate[0] + 1, coordinate[1], coordinate[2]), vec3(coordinate[0] - 1, coordinate[1], coordinate[2]),
-        vec3(coordinate[0], coordinate[1] + 1, coordinate[2]), vec3(coordinate[0], coordinate[1] - 1, coordinate[2]),
-        vec3(coordinate[0], coordinate[1], coordinate[2] + 1), vec3(coordinate[0], coordinate[1], coordinate[2] - 1)]
+        let res;
+        if (!floor) {
+            res = [vec3(coordinate[0] + 1, coordinate[1], coordinate[2]), vec3(coordinate[0] - 1, coordinate[1], coordinate[2]),
+            vec3(coordinate[0], coordinate[1] + 1, coordinate[2]), vec3(coordinate[0], coordinate[1] - 1, coordinate[2]),
+            vec3(coordinate[0], coordinate[1], coordinate[2] + 1), vec3(coordinate[0], coordinate[1], coordinate[2] - 1)];
+        } else {
+            res = [vec3(coordinate[0], coordinate[1] + 1, coordinate[2])];
+        }
 
         return res.map(item => coord_to_position(item));
     }
@@ -122,7 +143,8 @@ export class UCLACraft_Base extends Scene {
     //update this.cursor
     //update this.outlines
     getPointing_at(program_state) {
-        let new_selected = []
+
+        /*get this.cursor */
         let ray = this.MouseMonitor.ray;
         if (ray === undefined) {
             return;
@@ -141,22 +163,22 @@ export class UCLACraft_Base extends Scene {
             }
         })
         if (min_block !== undefined) {
-            new_selected.push(min_block);
-            this.selected = new_selected;
-            min_block.selected = true;
-        } else { //if pointing at nothing, clear this.outlines and this.on
+            this.cursor = min_block;
+
+        } else { //if pointing at nothing, clear this.outlines and this.cursor
             this.outlines = [];
-            this.selected = [];
+            this.cursor = undefined;
         }
         // if (this.selected.length !== 0) {
         //     console.log(this.selected);
         // }
 
-        /*get outline*/
+        /*get this.outlines*/
         if (this.state === PLACING) {
             let new_outlines = []
-            if (min_block !== undefined) {
-                const candidates = this.getOutlineCandidates(min_block);
+            if (min_block !== undefined || this.intersectFloor(program_state)) {
+                const candidates = (min_block !== undefined) ? this.getOutlineCandidates(min_block) : this.getOutlineCandidates(this.dummyBlock, true);
+
                 let outline_pos = undefined;
                 let min_t = Infinity;
                 candidates.forEach(candidate => {
@@ -185,13 +207,15 @@ export class UCLACraft_Base extends Scene {
 
     drawSelected(context, program_state) {
         this.selected.forEach(selected => {
-            if (this.state === PLACING)
-                this.shapes.Cube.draw(context, program_state, selected.model_transform.times(Mat4.scale(1.01, 1.01, 1.01)), this.materials.selected.override({ color: color(1, 1, 1, 0.05) }));
-            else if (this.state == MODIFYING)
-                this.shapes.Cube.draw(context, program_state, selected.model_transform.times(Mat4.scale(1.01, 1.01, 1.01)), this.materials.selected);
+            this.shapes.Cube.draw(context, program_state, selected.model_transform.times(Mat4.scale(1.01, 1.01, 1.01)), this.materials.selected);
 
-            selected.selected = false;
         });
+    }
+
+    drawCursor(context, program_state) {
+        if (this.cursor !== undefined) {
+            this.shapes.Cube.draw(context, program_state, this.cursor.model_transform.times(Mat4.scale(1.01, 1.01, 1.01)), this.materials.selected);
+        }
     }
 
 
@@ -299,6 +323,7 @@ export class UCLACraft extends UCLACraft_Base {
         this.getPointing_at(program_state); //fill in this.selected this.outlines
 
         this.drawSelected(context, program_state);//draw selected
+        this.drawCursor(context, program_state);//draw cursor
         this.drawOutline(context, program_state); //draw outlines
     }
 

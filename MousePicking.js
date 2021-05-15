@@ -90,7 +90,6 @@ class MousePicking extends Scene {
             e.preventDefault();
             this.mousePos = getMouseposition(canvas, e.offsetX, e.offsetY);
             this.ray = this.getRay(this.mousePos);
-
         })
     }
 
