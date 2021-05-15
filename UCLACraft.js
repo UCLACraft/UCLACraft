@@ -2,13 +2,17 @@ import { defs, tiny } from './examples/common.js';
 
 // Pull these names into this module's scope for convenience:
 const { vec3, vec4, color, hex_color, Mat4, Light, Shape, Material, Shader, Texture, Scene } = tiny;
-const { Triangle, Square, Tetrahedron, Windmill, Cube, Subdivision_Sphere } = defs;
+const { Triangle, Square, Tetrahedron, Windmill, Cube, Subdivision_Sphere, Cube_Outline } = defs;
 
 import Block from './Block.js';
 
 import { BLOCK_SIZE, FLOOR_DIM } from './Constants.js'
 
+import { MousePicking } from './MousePicking.js'
+import { coord_to_position, position_to_coord } from './helpers.js';
 
+const PLACING = 0;
+const MODIFYING = 1;
 
 export class UCLACraft_Base extends Scene {
 
@@ -17,6 +21,7 @@ export class UCLACraft_Base extends Scene {
 
         this.shapes = {
             Cube: new Cube(),
+            Cube_Outline: new Cube_Outline(),
         };
 
         const phong = new defs.Phong_Shader();
@@ -24,22 +29,55 @@ export class UCLACraft_Base extends Scene {
             plastic: new Material(phong,
                 { ambient: .5, diffusivity: .8, specularity: .5, color: color(0.1, 1, 0.1, 1) }),
             metal: new Material(phong,
-                { ambient: .5, diffusivity: .8, specularity: .8, color: color(.9, .5, .9, 1) })
+                { ambient: .5, diffusivity: .8, specularity: .8, color: color(.9, .5, .9, 1) }),
+            selected: new Material(phong,
+                { ambient: .8, diffusivity: 0.1, specularity: 0, color: color(1, 1, 1, 0.2) }),
+            outline: new Material(new defs.Basic_Shader()),
         };
+
+        this.MouseMonitor = new MousePicking(); //available: this.MouseMonitor.ray
 
         this.floor = { coordinates: this.getFloorCoordinates(FLOOR_DIM, FLOOR_DIM), coor_x: FLOOR_DIM, coor_z: FLOOR_DIM } //floor: (2*FLOOR_DIM)*(2*FLOOR_DIM)
         this.occupied_coords = [] //list of vec3 that record coordinates of blocks(both real and pseudo)
         this.blocks = []//list of Blocks
-        this.next_id = 0 //id counter; increment when a new block is created
+
+        this.cursor = undefined; //the block that the mouse is pointing at 
+
+        this.selected = []; //the selected blocks TODO
+        this.outlines = []; //outlines: an array indicating outlines positions
+
+
+        this.state = PLACING; //can be one of two states: PLACING/MODIFYING
+
+        this.mouse_control_added = false;
+
+        this.dummyBlock = new Block(this.shapes.Cube, vec3(0, 0, 0)); //a dummy block used for placing blocks on the floor
+
 
 
         //testing blocks
+        this.createBlock(vec3(0, 1, 0));
         this.createBlock(vec3(1, 1, 1));
         this.createBlock(vec3(1, 2, 1));
         this.createBlock(vec3(1, 2, 2));
 
+
+
+
     }
 
+    add_mouse_controls(canvas) {
+        canvas.addEventListener("click", () => {
+            if (this.state === PLACING) {
+                this.outlines.forEach((outline_pos, i) => {
+                    this.createBlock(position_to_coord(outline_pos));
+                })
+                this.outlines = [];
+            } else { //MODIFYING
+                return; //TODO
+            }
+        });
+    }
 
     //return a list of vec3 indicating the floor coordinates (all at y=0)
     getFloorCoordinates(x, z) {
@@ -56,6 +94,131 @@ export class UCLACraft_Base extends Scene {
 
     }
 
+    //algorithm: ray-sphere intersection: https://antongerdelan.net/opengl/raycasting.html
+    //returns the t if the ray goes thru the imaginary sphere
+    //otherwise, return null
+    ray_block_intersects(ray, blockPos, cam_pos) {
+        let shift = cam_pos.minus(blockPos);
+        let b = ray.dot(shift);
+        let c = shift.dot(shift) - ((BLOCK_SIZE / 2) * Math.sqrt(2)) ** 2;
+        if (b ** 2 - c > 0) {
+            return Math.min(-b + Math.sqrt(b ** 2 - c), -b - Math.sqrt(b ** 2 - c)); //choose the smaller solution
+        }
+        return null;
+    }
+
+    //modify this.dummy that overlaps with the floor IF the ray goes thru the floor
+    intersectFloor(program_state) {
+        let ray = this.MouseMonitor.ray;
+        let cam_pos = program_state.camera_transform.times(vec4(0, 0, 0, 1)).to3();
+        let t = (1 - cam_pos[1]) / (ray[1]);
+        let pos = cam_pos.plus(ray.times(t));
+        let x_coord = Math.round(position_to_coord(pos)[0]);
+        let z_coord = Math.round(position_to_coord(pos)[2]);
+        if (x_coord < -FLOOR_DIM / 2 || x_coord > FLOOR_DIM / 2 || z_coord < -FLOOR_DIM / 2 || z_coord > FLOOR_DIM / 2) {
+            return false; //out of range
+        }
+
+        this.dummyBlock.setCoord(x_coord, 0, z_coord);
+        return true;
+    }
+
+    //returns an array of block positions around the input block 
+    getOutlineCandidates(block, floor = false) {
+        let coordinate = block.coord;
+        let res;
+        if (!floor) {
+            res = [vec3(coordinate[0] + 1, coordinate[1], coordinate[2]), vec3(coordinate[0] - 1, coordinate[1], coordinate[2]),
+            vec3(coordinate[0], coordinate[1] + 1, coordinate[2]), vec3(coordinate[0], coordinate[1] - 1, coordinate[2]),
+            vec3(coordinate[0], coordinate[1], coordinate[2] + 1), vec3(coordinate[0], coordinate[1], coordinate[2] - 1)];
+        } else {
+            res = [vec3(coordinate[0], coordinate[1] + 1, coordinate[2])];
+        }
+
+        return res.map(item => coord_to_position(item));
+    }
+
+
+
+    //update this.cursor
+    //update this.outlines
+    getPointing_at(program_state) {
+
+        /*get this.cursor */
+        let ray = this.MouseMonitor.ray;
+        if (ray === undefined) {
+            return;
+        }
+
+        let min_t = Infinity;
+        let min_block = undefined;
+
+        this.blocks.forEach(item => {
+            let curr = this.ray_block_intersects(ray, item.position, program_state.camera_transform.times(vec4(0, 0, 0, 1)).to3())
+            if (curr !== null) {
+                if (curr < min_t) {
+                    min_t = curr;
+                    min_block = item;
+                }
+            }
+        })
+        if (min_block !== undefined) {
+            this.cursor = min_block;
+
+        } else { //if pointing at nothing, clear this.outlines and this.cursor
+            this.outlines = [];
+            this.cursor = undefined;
+        }
+        // if (this.selected.length !== 0) {
+        //     console.log(this.selected);
+        // }
+
+        /*get this.outlines*/
+        if (this.state === PLACING) {
+            let new_outlines = []
+            if (min_block !== undefined || this.intersectFloor(program_state)) {
+                const candidates = (min_block !== undefined) ? this.getOutlineCandidates(min_block) : this.getOutlineCandidates(this.dummyBlock, true);
+
+                let outline_pos = undefined;
+                let min_t = Infinity;
+                candidates.forEach(candidate => {
+                    let curr = this.ray_block_intersects(ray, candidate, program_state.camera_transform.times(vec4(0, 0, 0, 1)).to3())
+                    if (curr !== null) {
+                        if (curr < min_t) {
+                            min_t = curr;
+                            outline_pos = candidate;
+                        }
+                    }
+                })
+                if (outline_pos !== undefined) {
+                    new_outlines.push(outline_pos);
+                    this.outlines = new_outlines;
+                }
+            }
+        }
+    }
+
+    drawOutline(context, program_state) {
+        //draw outline
+        this.outlines.forEach(outline => {
+            this.shapes.Cube_Outline.draw(context, program_state, Mat4.translation(outline[0], outline[1], outline[2]), this.materials.outline, "LINES");
+        })
+    }
+
+    drawSelected(context, program_state) {
+        this.selected.forEach(selected => {
+            this.shapes.Cube.draw(context, program_state, selected.model_transform.times(Mat4.scale(1.01, 1.01, 1.01)), this.materials.selected);
+
+        });
+    }
+
+    drawCursor(context, program_state) {
+        if (this.cursor !== undefined) {
+            this.shapes.Cube.draw(context, program_state, this.cursor.model_transform.times(Mat4.scale(1.01, 1.01, 1.01)), this.materials.selected);
+        }
+    }
+
+
 
     createBlock(coordinates, shape = this.shapes.Cube, material = this.materials.metal) {
         //check overlap
@@ -68,7 +231,6 @@ export class UCLACraft_Base extends Scene {
 
         this.blocks.push(new Block(shape, coordinates, material, this.next_id)); //coordinates: vec3
         this.occupied_coords.push(coordinates);
-        this.next_id++;
         return true
     }
 
@@ -102,14 +264,29 @@ export class UCLACraft_Base extends Scene {
         if (!context.scratchpad.controls) {
             this.children.push(context.scratchpad.controls = new defs.Movement_Controls());
 
+
             // Define the global camera and projection matrices, which are stored in program_state.  The camera
             // matrix follows the usual format for transforms, but with opposite values (cameras exist as
             // inverted matrices).  The projection matrix follows an unusual format and determines how depth is
             // treated when projecting 3D points onto a plane.  The Mat4 functions perspective() and
             // orthographic() automatically generate valid matrices for one.  The input arguments of
             // perspective() are field of view, aspect ratio, and distances to the near plane and far plane.
-            program_state.set_camera(Mat4.translation(0, 3, -10));
+            let camera_pos = Mat4.translation(0, 3, 10);
+
+            program_state.set_camera(Mat4.inverse(camera_pos));
         }
+
+        if (!context.scratchpad.mousePicking) {
+            this.children.push(context.scratchpad.mousePicking = this.MouseMonitor);
+            console.log(context)
+        }
+
+        if (!this.mouse_control_added) {
+            this.add_mouse_controls(context.canvas);
+            this.mouse_control_added = true;
+        }
+
+
         program_state.projection_transform = Mat4.perspective(
             Math.PI / 4, context.width / context.height, 1, 100);
 
@@ -143,7 +320,11 @@ export class UCLACraft extends UCLACraft_Base {
         this.drawfloor(context, program_state);
         this.drawBlocks(context, program_state);
 
+        this.getPointing_at(program_state); //fill in this.selected this.outlines
 
+        this.drawSelected(context, program_state);//draw selected
+        this.drawCursor(context, program_state);//draw cursor
+        this.drawOutline(context, program_state); //draw outlines
     }
 
     drawfloor(context, program_state) {
@@ -156,6 +337,9 @@ export class UCLACraft extends UCLACraft_Base {
             block.draw(context, program_state);
         });
     }
+
+
+
 
 
 }

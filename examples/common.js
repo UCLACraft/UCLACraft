@@ -1,5 +1,5 @@
-import {tiny} from '../tiny-graphics.js';
-import {widgets} from '../tiny-graphics-widgets.js';
+import { tiny } from '../tiny-graphics.js';
+import { widgets } from '../tiny-graphics-widgets.js';
 // Pull these names into this module's scope for convenience:
 const {
     Vector, Vector3, vec, vec3, vec4, color, Matrix, Mat4,
@@ -10,7 +10,7 @@ Object.assign(tiny, widgets);
 
 const defs = {};
 
-export {tiny, defs};
+export { tiny, defs };
 
 const Triangle = defs.Triangle =
     class Triangle extends Shape {
@@ -154,6 +154,27 @@ const Cube = defs.Cube =
                 }
         }
     }
+const Cube_Outline = defs.Cube_Outline =
+    class Cube_Outline extends Shape {
+        constructor() {
+            super("position", "color");
+            //  TODO (Requirement 5).
+            // When a set of lines is used in graphics, you should think of the list entries as
+            // broken down into pairs; each pair of vertices will be drawn as a line segment.
+            // Note: since the outline is rendered with Basic_shader, you need to redefine the position and color of each vertex
+            this.arrays.position = Vector3.cast(
+                [-1, -1, -1], [-1, 1, -1], [-1, 1, -1], [1, 1, -1], [1, 1, -1], [1, -1, -1], [1, -1, -1], [-1, -1, -1],
+                [-1, -1, 1], [-1, 1, 1], [-1, 1, 1], [1, 1, 1], [1, 1, 1], [1, -1, 1], [1, -1, 1], [-1, -1, 1],
+                [1, 1, -1], [1, 1, 1], [1, -1, -1], [1, -1, 1], [-1, -1, -1], [-1, -1, 1], [-1, 1, -1], [-1, 1, 1]
+            );
+
+            this.arrays.color = new Array(24);
+            this.arrays.color.fill(color(1, 1, 1, 1));
+
+            this.indices = false;
+
+        }
+    }
 
 
 const Subdivision_Sphere = defs.Subdivision_Sphere =
@@ -201,7 +222,7 @@ const Subdivision_Sphere = defs.Subdivision_Sphere =
                         if (tex[q[0]][0] < 0.5) {
                             this.indices[q[1]] = this.arrays.position.length;
                             this.arrays.position.push(this.arrays.position[q[0]].copy());
-                            this.arrays.normal.push(this.arrays.normal  [q[0]].copy());
+                            this.arrays.normal.push(this.arrays.normal[q[0]].copy());
                             tex.push(tex[q[0]].plus(vec(1, 0)));
                         }
                     }
@@ -456,9 +477,9 @@ const Minimal_Webgl_Demo = defs.Minimal_Webgl_Demo =
         constructor(webgl_manager, control_panel) {
             super(webgl_manager, control_panel);
             // Don't create any DOM elements to control this scene:
-            this.widget_options = {make_controls: false, show_explanation: false};
+            this.widget_options = { make_controls: false, show_explanation: false };
             // Send a Triangle's vertices to the GPU's buffers:
-            this.shapes = {triangle: new Minimal_Shape()};
+            this.shapes = { triangle: new Minimal_Shape() };
             this.shader = new Basic_Shader();
         }
 
@@ -710,7 +731,7 @@ const Phong_Shader = defs.Phong_Shader =
             // within this function, one data field at a time, to fully initialize the shader for a draw.
 
             // Fill in any missing fields in the Material object with custom defaults for this shader:
-            const defaults = {color: color(0, 0, 0, 1), ambient: 0, diffusivity: 1, specularity: 1, smoothness: 40};
+            const defaults = { color: color(0, 0, 0, 1), ambient: 0, diffusivity: 1, specularity: 1, smoothness: 40 };
             material = Object.assign({}, defaults, material);
 
             this.send_material(context, gpu_addresses, material);
@@ -843,7 +864,7 @@ const Movement_Controls = defs.Movement_Controls =
         add_mouse_controls(canvas) {
             // add_mouse_controls():  Attach HTML mouse events to the drawing canvas.
             // First, measure mouse steering, for rotating the flyaround camera:
-            this.mouse = {"from_center": vec(0, 0)};
+            this.mouse = { "from_center": vec(0, 0) };
             const mouse_position = (e, rect = canvas.getBoundingClientRect()) =>
                 vec(e.clientX - (rect.left + rect.right) / 2, e.clientY - (rect.bottom + rect.top) / 2);
             // Set up mouse response.  The last one stops us from reacting if the mouse leaves the canvas:
