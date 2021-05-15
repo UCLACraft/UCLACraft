@@ -8,8 +8,9 @@ function getMouseposition(canvas, x, y) {
     let rect = canvas.getBoundingClientRect();
     let hori_center = rect.width / 2;
     let verti_center = rect.height / 2;
-    return vec((x - hori_center) / hori_center, (y - verti_center) / verti_center);
+    return vec((x - hori_center) / hori_center, -(y - verti_center) / verti_center);
 }
+
 
 class MousePicking extends Scene {
 
@@ -36,6 +37,15 @@ class MousePicking extends Scene {
             () => graphics_state.projection_transform);
     }
 
+    //convert mouse postion to a ray in world space
+    getRay(mousePos) {
+        let ray_clip = vec4(mousePos[0], mousePos[1], -1.0, 1.0);
+        let ray_eye = Mat4.inverse(this.projection_m()).times(ray_clip);
+        ray_eye[2] = -1.0;
+        ray_eye[3] = 0.0;
+        let ray_world = this.matrix().times(ray_eye);
+        return ray_world.to3().normalized();
+    }
 
 
     add_mouse_controls(canvas) {
@@ -63,15 +73,24 @@ class MousePicking extends Scene {
         //     if (!this.mouse.anchor) this.mouse.from_center.scale_by(0)
         // });
 
+        canvas.addEventListener("click", e => {
+            e.preventDefault();
+            //console.log(this.mousePos);
+            //this.ray = this.getRay(getMouseposition(canvas, e.offsetX, e.offsetY));
+            //set camera matrix
+            let newCam_m = Mat4.look_at(this.matrix().times(vec4(0, 0, 0, 1)).to3(), this.matrix().times(vec4(0, 0, 0, 1)).to3().plus(this.ray), vec3(0, 1, 0));
+            this.setNewCamera = () => newCam_m; //the new camera matrix
+            //console.log(this.matrix());
+            //console.log((this.inverse().times(this.projection_m())));
+            //console.log(this.projection_m().times(this.inverse().times(vec4(0, 0, 0, 1))));
+
+        })
+
         canvas.addEventListener("mousemove", e => {
             e.preventDefault();
             this.mousePos = getMouseposition(canvas, e.offsetX, e.offsetY);
-            this.ray_clip = vec4(this.mousePos[0], this.mousePos[1], -1.0, 1.0);
+            this.ray = this.getRay(this.mousePos);
 
-            this.ray_eye = Mat4.inverse(this.projection_m()).times(this.ray_clip);
-            this.ray = this.inverse().times(this.ray_eye).normalized();
-
-            console.log(this.ray);
         })
     }
 
@@ -101,6 +120,11 @@ class MousePicking extends Scene {
             this.MouseMonitoradded = true;
             console.log(context.canvas);
             console.log(context.canvas.getBoundingClientRect());
+        }
+
+        if (this.setNewCamera !== undefined) {
+            graphics_state.set_camera(this.setNewCamera());
+            this.setNewCamera = undefined;
         }
 
         // Log some values:
