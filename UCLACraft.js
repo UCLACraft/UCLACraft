@@ -2,15 +2,17 @@ import { defs, tiny } from './examples/common.js';
 
 // Pull these names into this module's scope for convenience:
 const { vec3, vec4, color, hex_color, Mat4, Light, Shape, Material, Shader, Texture, Scene } = tiny;
-const { Triangle, Square, Tetrahedron, Windmill, Cube, Subdivision_Sphere } = defs;
+const { Triangle, Square, Tetrahedron, Windmill, Cube, Subdivision_Sphere, Cube_Outline } = defs;
 
 import Block from './Block.js';
 
 import { BLOCK_SIZE, FLOOR_DIM } from './Constants.js'
 
 import { MousePicking } from './MousePicking.js'
+import { coord_to_position, position_to_coord } from './helpers.js';
 
-
+const PLACING = 0;
+const MODIFYING = 1;
 
 export class UCLACraft_Base extends Scene {
 
@@ -19,6 +21,7 @@ export class UCLACraft_Base extends Scene {
 
         this.shapes = {
             Cube: new Cube(),
+            Cube_Outline: new Cube_Outline(),
         };
 
         const phong = new defs.Phong_Shader();
@@ -26,13 +29,28 @@ export class UCLACraft_Base extends Scene {
             plastic: new Material(phong,
                 { ambient: .5, diffusivity: .8, specularity: .5, color: color(0.1, 1, 0.1, 1) }),
             metal: new Material(phong,
-                { ambient: .5, diffusivity: .8, specularity: .8, color: color(.9, .5, .9, 1) })
+                { ambient: .5, diffusivity: .8, specularity: .8, color: color(.9, .5, .9, 1) }),
+            selected: new Material(phong,
+                { ambient: .8, diffusivity: 0.1, specularity: 0, color: color(1, 1, 1, 0.5) }),
+            outline: new Material(new defs.Basic_Shader()),
         };
+
+        this.MouseMonitor = new MousePicking(); //available: this.MouseMonitor.ray
 
         this.floor = { coordinates: this.getFloorCoordinates(FLOOR_DIM, FLOOR_DIM), coor_x: FLOOR_DIM, coor_z: FLOOR_DIM } //floor: (2*FLOOR_DIM)*(2*FLOOR_DIM)
         this.occupied_coords = [] //list of vec3 that record coordinates of blocks(both real and pseudo)
         this.blocks = []//list of Blocks
-        this.next_id = 0 //id counter; increment when a new block is created
+
+        this.cursor = undefined; //the block that the mouse is pointing at 
+
+        this.selected = []; //the selected blocks
+        this.outlines = []; //outlines: an array indicating outlines positions
+
+
+        this.state = PLACING; //can be one of two states: PLACING/MODIFYING
+
+        this.mouse_control_added = false;
+
 
 
         //testing blocks
@@ -42,8 +60,24 @@ export class UCLACraft_Base extends Scene {
         this.createBlock(vec3(1, 2, 2));
 
 
+
+
     }
 
+    add_mouse_controls(canvas) {
+        canvas.addEventListener("click", () => {
+            if (this.state === PLACING) {
+                console.log("clicked");
+                console.log(this.outlines);
+                this.outlines.forEach((outline_pos, i) => {
+                    this.createBlock(position_to_coord(outline_pos));
+                })
+                this.outlines = [];
+            } else { //MODIFYING
+                return; //TODO
+            }
+        });
+    }
 
     //return a list of vec3 indicating the floor coordinates (all at y=0)
     getFloorCoordinates(x, z) {
@@ -60,6 +94,107 @@ export class UCLACraft_Base extends Scene {
 
     }
 
+    //algorithm: ray-sphere intersection: https://antongerdelan.net/opengl/raycasting.html
+    //returns the t if the ray goes thru the imaginary sphere
+    //otherwise, return null
+    ray_block_intersects(ray, blockPos, cam_pos) {
+        let shift = cam_pos.minus(blockPos);
+        let b = ray.dot(shift);
+        let c = shift.dot(shift) - ((BLOCK_SIZE / 2) * Math.sqrt(2)) ** 2;
+        if (b ** 2 - c > 0) {
+            return Math.min(-b + Math.sqrt(b ** 2 - c), -b - Math.sqrt(b ** 2 - c)); //choose the smaller solution
+        }
+        return null;
+    }
+
+    //returns an array of block positions around the input block 
+    getOutlineCandidates(block) {
+        let coordinate = block.coord;
+        let res = [vec3(coordinate[0] + 1, coordinate[1], coordinate[2]), vec3(coordinate[0] - 1, coordinate[1], coordinate[2]),
+        vec3(coordinate[0], coordinate[1] + 1, coordinate[2]), vec3(coordinate[0], coordinate[1] - 1, coordinate[2]),
+        vec3(coordinate[0], coordinate[1], coordinate[2] + 1), vec3(coordinate[0], coordinate[1], coordinate[2] - 1)]
+
+        return res.map(item => coord_to_position(item));
+    }
+
+
+
+    //update this.cursor
+    //update this.outlines
+    getPointing_at(program_state) {
+        let new_selected = []
+        let ray = this.MouseMonitor.ray;
+        if (ray === undefined) {
+            return;
+        }
+
+        let min_t = Infinity;
+        let min_block = undefined;
+
+        this.blocks.forEach(item => {
+            let curr = this.ray_block_intersects(ray, item.position, program_state.camera_transform.times(vec4(0, 0, 0, 1)).to3())
+            if (curr !== null) {
+                if (curr < min_t) {
+                    min_t = curr;
+                    min_block = item;
+                }
+            }
+        })
+        if (min_block !== undefined) {
+            new_selected.push(min_block);
+            this.selected = new_selected;
+            min_block.selected = true;
+        } else { //if pointing at nothing, clear this.outlines and this.on
+            this.outlines = [];
+            this.selected = [];
+        }
+        // if (this.selected.length !== 0) {
+        //     console.log(this.selected);
+        // }
+
+        /*get outline*/
+        if (this.state === PLACING) {
+            let new_outlines = []
+            if (min_block !== undefined) {
+                const candidates = this.getOutlineCandidates(min_block);
+                let outline_pos = undefined;
+                let min_t = Infinity;
+                candidates.forEach(candidate => {
+                    let curr = this.ray_block_intersects(ray, candidate, program_state.camera_transform.times(vec4(0, 0, 0, 1)).to3())
+                    if (curr !== null) {
+                        if (curr < min_t) {
+                            min_t = curr;
+                            outline_pos = candidate;
+                        }
+                    }
+                })
+                if (outline_pos !== undefined) {
+                    new_outlines.push(outline_pos);
+                    this.outlines = new_outlines;
+                }
+            }
+        }
+    }
+
+    drawOutline(context, program_state) {
+        //draw outline
+        this.outlines.forEach(outline => {
+            this.shapes.Cube_Outline.draw(context, program_state, Mat4.translation(outline[0], outline[1], outline[2]), this.materials.outline, "LINES");
+        })
+    }
+
+    drawSelected(context, program_state) {
+        this.selected.forEach(selected => {
+            if (this.state === PLACING)
+                this.shapes.Cube.draw(context, program_state, selected.model_transform.times(Mat4.scale(1.01, 1.01, 1.01)), this.materials.selected.override({ color: color(1, 1, 1, 0.05) }));
+            else if (this.state == MODIFYING)
+                this.shapes.Cube.draw(context, program_state, selected.model_transform.times(Mat4.scale(1.01, 1.01, 1.01)), this.materials.selected);
+
+            selected.selected = false;
+        });
+    }
+
+
 
     createBlock(coordinates, shape = this.shapes.Cube, material = this.materials.metal) {
         //check overlap
@@ -72,7 +207,6 @@ export class UCLACraft_Base extends Scene {
 
         this.blocks.push(new Block(shape, coordinates, material, this.next_id)); //coordinates: vec3
         this.occupied_coords.push(coordinates);
-        this.next_id++;
         return true
     }
 
@@ -119,9 +253,15 @@ export class UCLACraft_Base extends Scene {
         }
 
         if (!context.scratchpad.mousePicking) {
-            this.children.push(context.scratchpad.mousePicking = new MousePicking());
+            this.children.push(context.scratchpad.mousePicking = this.MouseMonitor);
             console.log(context)
         }
+
+        if (!this.mouse_control_added) {
+            this.add_mouse_controls(context.canvas);
+            this.mouse_control_added = true;
+        }
+
 
         program_state.projection_transform = Mat4.perspective(
             Math.PI / 4, context.width / context.height, 1, 100);
@@ -156,7 +296,10 @@ export class UCLACraft extends UCLACraft_Base {
         this.drawfloor(context, program_state);
         this.drawBlocks(context, program_state);
 
+        this.getPointing_at(program_state); //fill in this.selected this.outlines
 
+        this.drawSelected(context, program_state);//draw selected
+        this.drawOutline(context, program_state); //draw outlines
     }
 
     drawfloor(context, program_state) {
@@ -169,6 +312,9 @@ export class UCLACraft extends UCLACraft_Base {
             block.draw(context, program_state);
         });
     }
+
+
+
 
 
 }

@@ -16,7 +16,7 @@ export default class Block {
         this.position = coord_to_position(this.coord); //vec3: position
         this.material = material;
         this.model_transform = Mat4.translation(this.position[0], this.position[1], this.position[2]);
-        this.block_id = block_id;
+        this.selected = false;
     }
 
     //draw the block
@@ -32,23 +32,8 @@ export default class Block {
         return this.position;
     }
 
-    getID() {
-        return this.block_id;
-    }
-
     getTransformMatrix() {
         return this.model_transform;
-    }
-
-    //whether the block is floor
-    is_terrain() {
-        return true;
-    }
-
-    //whether a vector passes through the block
-    //ray: vec4
-    pass_thru(ray) {
-        return true;
     }
 
 

@@ -73,18 +73,18 @@ class MousePicking extends Scene {
         //     if (!this.mouse.anchor) this.mouse.from_center.scale_by(0)
         // });
 
-        canvas.addEventListener("click", e => {
-            e.preventDefault();
-            //console.log(this.mousePos);
-            //this.ray = this.getRay(getMouseposition(canvas, e.offsetX, e.offsetY));
-            //set camera matrix
-            let newCam_m = Mat4.look_at(this.matrix().times(vec4(0, 0, 0, 1)).to3(), this.matrix().times(vec4(0, 0, 0, 1)).to3().plus(this.ray), vec3(0, 1, 0));
-            this.setNewCamera = () => newCam_m; //the new camera matrix
-            //console.log(this.matrix());
-            //console.log((this.inverse().times(this.projection_m())));
-            //console.log(this.projection_m().times(this.inverse().times(vec4(0, 0, 0, 1))));
+        // canvas.addEventListener("click", e => {
+        //     e.preventDefault();
+        //     //console.log(this.mousePos);
+        //     //this.ray = this.getRay(getMouseposition(canvas, e.offsetX, e.offsetY));
+        //     //set camera matrix
+        //     let newCam_m = Mat4.look_at(this.matrix().times(vec4(0, 0, 0, 1)).to3(), this.matrix().times(vec4(0, 0, 0, 1)).to3().plus(this.ray), vec3(0, 1, 0));
+        //     this.setNewCamera = () => newCam_m; //the new camera matrix
+        //     //console.log(this.matrix());
+        //     //console.log((this.inverse().times(this.projection_m())));
+        //     //console.log(this.projection_m().times(this.inverse().times(vec4(0, 0, 0, 1))));
 
-        })
+        // })
 
         canvas.addEventListener("mousemove", e => {
             e.preventDefault();
