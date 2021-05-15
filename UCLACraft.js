@@ -8,6 +8,8 @@ import Block from './Block.js';
 
 import { BLOCK_SIZE, FLOOR_DIM } from './Constants.js'
 
+import { MousePicking } from './MousePicking.js'
+
 
 
 export class UCLACraft_Base extends Scene {
@@ -34,9 +36,11 @@ export class UCLACraft_Base extends Scene {
 
 
         //testing blocks
+        this.createBlock(vec3(0, 1, 0));
         this.createBlock(vec3(1, 1, 1));
         this.createBlock(vec3(1, 2, 1));
         this.createBlock(vec3(1, 2, 2));
+
 
     }
 
@@ -102,14 +106,23 @@ export class UCLACraft_Base extends Scene {
         if (!context.scratchpad.controls) {
             this.children.push(context.scratchpad.controls = new defs.Movement_Controls());
 
+
             // Define the global camera and projection matrices, which are stored in program_state.  The camera
             // matrix follows the usual format for transforms, but with opposite values (cameras exist as
             // inverted matrices).  The projection matrix follows an unusual format and determines how depth is
             // treated when projecting 3D points onto a plane.  The Mat4 functions perspective() and
             // orthographic() automatically generate valid matrices for one.  The input arguments of
             // perspective() are field of view, aspect ratio, and distances to the near plane and far plane.
-            program_state.set_camera(Mat4.translation(0, 3, -10));
+            let camera_pos = Mat4.translation(0, 3, 10);
+
+            program_state.set_camera(Mat4.inverse(camera_pos));
         }
+
+        if (!context.scratchpad.mousePicking) {
+            this.children.push(context.scratchpad.mousePicking = new MousePicking());
+            console.log(context)
+        }
+
         program_state.projection_transform = Mat4.perspective(
             Math.PI / 4, context.width / context.height, 1, 100);
 
