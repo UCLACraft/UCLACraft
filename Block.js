@@ -24,6 +24,10 @@ export default class Block {
         this.shape.draw(context, program_state, model_transform, this.material);
     }
 
+    setTexture(material){
+        this.material = material;
+    }
+
     getCoord() {
         return this.coord;
     }
