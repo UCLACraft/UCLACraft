@@ -3,7 +3,7 @@ import { defs, tiny } from './examples/common.js';
 // Pull these names into this module's scope for convenience:
 
 const { vec3, vec4, color, hex_color, Mat4, Light, Shape, Material, Shader, Texture, Scene, Matrix } = tiny;
-const { Triangle, Square, Tetrahedron, Windmill, Cube, Subdivision_Sphere, Cube_Outline,Textured_Phong,Axis_Arrows } = defs;
+const { Triangle, Square, Tetrahedron, Windmill, Cube, Subdivision_Sphere, Cube_Outline, Textured_Phong, Axis_Arrows } = defs;
 
 import Block from './Block.js';
 
@@ -30,23 +30,26 @@ export class UCLACraft_Base extends Scene {
         };
 
         const phong = new defs.Phong_Shader();
-        const texturephong =  new defs.Textured_Phong();
+        const texturephong = new defs.Textured_Phong();
         this.materials = {
 
             plastic: new Material(texturephong,
-                { ambient: 1, diffusivity: .8, specularity: .3,
-                texture:new Texture("assets/Grass.jpg", "LINEAR_MIPMAP_LINEAR") }),
+                {
+                    ambient: 1, diffusivity: .8, specularity: .3,
+                    texture: new Texture("assets/Grass.jpg", "LINEAR_MIPMAP_LINEAR")
+                }),
             metal: new Material(texturephong, {
                 ambient: 1, diffusivity: .8, specularity: .8,
                 texture: new Texture("assets/RMarble.png", "LINEAR_MIPMAP_LINEAR")
-                }),
+            }),
             ice: new Material(texturephong, {
                 ambient: 1, diffusivity: .8, specularity: .2,
                 texture: new Texture("assets/CrackedIce.png", "LINEAR_MIPMAP_LINEAR")
             }),
             selected: new Material(phong, {
                 ambient: .8, diffusivity: 0.1, specularity: 0,
-                color: color(1, 1, 1, 0.2),
+                color: color(1, 1, 1, 0.2)
+            }),
             outline: new Material(new defs.Basic_Shader()),
             shadow: new Material(new Shadow_Shader()),
         };
@@ -150,28 +153,26 @@ export class UCLACraft_Base extends Scene {
 
 
     placeGroundShadow(context, program_state, block_position, light_position, sample_rate) { //TODO: DYNAMIC CALCULATION ACCORDING TO LIGHT SOURCE && REWRITE RAY CASTING FUNCTION
-        for (let x = -32; x < 33; x+=sample_rate)
-        {
-            for (let z = -32; z < 33; z+=sample_rate)
-            {
+        for (let x = -32; x < 33; x += sample_rate) {
+            for (let z = -32; z < 33; z += sample_rate) {
                 let ground_point = vec3(x, 1, z);
                 let ray = light_position.minus(vec3(x, 1, z)); //VECTOR FROM GROUND POINT TO LIGHT POINT
                 let blocked = false;
                 let ray_x, ray_y, ray_z;
-                for (let t = 0; t < 1; t+=0.02) { //TEST IF ANY POINT IN THE RAY IN INSIDE A CUBE
-                    ray_x = ground_point[0]+t*ray[0];
-                    ray_y = ground_point[1]+t*ray[1];
-                    ray_z = ground_point[2]+t*ray[2];
-                    if (ray_x <= block_position[0]+1 && ray_x >= block_position[0]-1 &&
-                        ray_y <= block_position[1]+1 && ray_y >= block_position[1]-1 &&
-                        ray_z <= block_position[2]+1 && ray_z >= block_position[2]-1) { //block position return the center of the block, and the block volume is defined by +-1
+                for (let t = 0; t < 1; t += 0.02) { //TEST IF ANY POINT IN THE RAY IN INSIDE A CUBE
+                    ray_x = ground_point[0] + t * ray[0];
+                    ray_y = ground_point[1] + t * ray[1];
+                    ray_z = ground_point[2] + t * ray[2];
+                    if (ray_x <= block_position[0] + 1 && ray_x >= block_position[0] - 1 &&
+                        ray_y <= block_position[1] + 1 && ray_y >= block_position[1] - 1 &&
+                        ray_z <= block_position[2] + 1 && ray_z >= block_position[2] - 1) { //block position return the center of the block, and the block volume is defined by +-1
                         blocked = true;
                         break;
                     }
                 }
                 if (blocked) {
                     this.shapes.Shadow.draw(context, program_state, Mat4.identity().
-                        times(Mat4.translation(x-sample_rate/4, 1, z-sample_rate/4)).times(Mat4.scale(sample_rate/2, 0.01, sample_rate/2)), this.materials.shadow);
+                        times(Mat4.translation(x - sample_rate / 4, 1, z - sample_rate / 4)).times(Mat4.scale(sample_rate / 2, 0.01, sample_rate / 2)), this.materials.shadow);
                     // let translation = Mat4.identity().times(Mat4.translation(x,1,z)).times(Mat4.scale(1,0.1,1));
                     // this.shapes.Shadow.draw(context,program_state,translation,this.materials.shadow);
                 }
@@ -266,23 +267,25 @@ export class UCLACraft_Base extends Scene {
         this.occupied_coords.push(coordinates);
         return true
     }
-    flipMaterial(){
-        if(this.parity){
+    flipMaterial() {
+        if (this.parity) {
             this.blocks.forEach(block => {
-                block.setTexture(this.materials.plastic)})
-        }else{
+                block.setTexture(this.materials.plastic)
+            })
+        } else {
             this.blocks.forEach(block => {
-                block.setTexture(this.materials.metal)})
+                block.setTexture(this.materials.metal)
+            })
         }
         this.parity = !this.parity
     }
-    toIce(){
+    toIce() {
         this.currentMaterial = this.materials.ice;
     }
-    toMetal(){
+    toMetal() {
         this.currentMaterial = this.materials.metal;
     }
-    toGround(){
+    toGround() {
         this.currentMaterial = this.materials.plastic;
     }
     make_control_panel() {
@@ -304,11 +307,11 @@ export class UCLACraft_Base extends Scene {
         //     this.swarm ^= 1;
         // });
         super.make_control_panel();
-        this.key_triggered_button("Change All to Marble/Grass", ["Control", "c"], ()=>this.flipMaterial());
+        this.key_triggered_button("Change All to Marble/Grass", ["Control", "c"], () => this.flipMaterial());
         this.new_line()
-        this.key_triggered_button("Change Texture to Ice", ["Control", "i"], ()=>this.toIce());
-        this.key_triggered_button("Change Texture to Marble", ["Control", "m"], ()=>this.toMetal());
-        this.key_triggered_button("Change Texture to Grass", ["Control", "g"], ()=>this.toGround());
+        this.key_triggered_button("Change Texture to Ice", ["Control", "i"], () => this.toIce());
+        this.key_triggered_button("Change Texture to Marble", ["Control", "m"], () => this.toMetal());
+        this.key_triggered_button("Change Texture to Grass", ["Control", "g"], () => this.toGround());
     }
 
     display(context, program_state) {
@@ -351,14 +354,14 @@ export class UCLACraft_Base extends Scene {
         // the shader when coloring shapes.  See Light's class definition for inputs.
         const t = this.t = program_state.animation_time / 1000;
         const angle = Math.sin(t);
-        const light_position = vec4(1+5*angle,20,5,0);
+        const light_position = vec4(1 + 5 * angle, 20, 5, 0);
         program_state.lights = [new Light(light_position, color(1, 1, 1, 1), 1000)];
 
         //if (this.blocks.length) 5->0.2 10->0.4 20->0.5 50->0.75 else->0.8
-        let sample_rate = 0.23*Math.log(this.blocks.length+2)-0.15;
-        if (this.blocks.length >=75) {sample_rate = 1.2;}
-        else if (this.blocks.length >=100) {sample_rate = 2;}
-        this.blocks.forEach(item => this.placeGroundShadow(context,program_state,item.position,light_position.to3(), sample_rate));
+        let sample_rate = 0.23 * Math.log(this.blocks.length + 2) - 0.15;
+        if (this.blocks.length >= 75) { sample_rate = 1.2; }
+        else if (this.blocks.length >= 100) { sample_rate = 2; }
+        this.blocks.forEach(item => this.placeGroundShadow(context, program_state, item.position, light_position.to3(), sample_rate));
     }
 
 }
