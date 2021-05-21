@@ -91,7 +91,22 @@ export class UCLACraft_Base extends Scene {
                 })
                 this.outlines = [];
             } else { //MODIFYING
-                return; //TODO
+                //if clicked, add the block to this.selected if it's in there; remove it from this.selected if it's not in there
+                if (this.cursor === undefined) {
+                    return;
+                } else {
+                    let found = false;
+                    this.selected.forEach((item, i) => {
+                        if (this.cursor === item) {
+                            this.selected.splice(i, 1);
+                            found = true;
+                            return;
+                        }
+                    })
+                    if (!found) {
+                        this.selected.push(this.cursor);
+                    }
+                }
             }
         });
     }
@@ -267,6 +282,25 @@ export class UCLACraft_Base extends Scene {
         this.occupied_coords.push(coordinates);
         return true
     }
+
+    deleteBlock(block) {
+        this.blocks.forEach((item, i) => {
+            if (block === item) {
+                this.blocks.splice(i, 1);
+            }
+        })
+    }
+
+    deleteSelected() {
+        if (this.state !== MODIFYING) {
+            window.alert("Error!");
+        } else {
+            this.selected.forEach((item, i) => {
+                this.deleteBlock(item);
+            })
+            this.selected = [];
+        }
+    }
     flipMaterial() {
         if (this.parity) {
             this.blocks.forEach(block => {
@@ -281,12 +315,30 @@ export class UCLACraft_Base extends Scene {
     }
     toIce() {
         this.currentMaterial = this.materials.ice;
+        if (this.state === MODIFYING) {
+            this.selected.forEach((item, i) => {
+                item.material = this.materials.ice;
+            })
+            this.selected = [];
+        }
     }
     toMetal() {
         this.currentMaterial = this.materials.metal;
+        if (this.state === MODIFYING) {
+            this.selected.forEach((item, i) => {
+                item.material = this.materials.metal;
+            })
+            this.selected = [];
+        }
     }
     toGround() {
         this.currentMaterial = this.materials.plastic;
+        if (this.state === MODIFYING) {
+            this.selected.forEach((item, i) => {
+                item.material = this.materials.plastic;
+            })
+            this.selected = [];
+        }
     }
     make_control_panel() {
         // make_control_panel(): Sets up a panel of interactive HTML elements, including
@@ -312,6 +364,15 @@ export class UCLACraft_Base extends Scene {
         this.key_triggered_button("Change Texture to Ice", ["Control", "i"], () => this.toIce());
         this.key_triggered_button("Change Texture to Marble", ["Control", "m"], () => this.toMetal());
         this.key_triggered_button("Change Texture to Grass", ["Control", "g"], () => this.toGround());
+        this.key_triggered_button("Switch State", ["Enter"], () => {
+            if (this.state === MODIFYING) {
+                this.state = PLACING;
+            } else {
+                this.state = MODIFYING;
+                this.outlines = [];
+            }
+        });
+        this.key_triggered_button("Delete", ["Backspace"], () => { if (this.state === MODIFYING) this.deleteSelected(); });
     }
 
     display(context, program_state) {
