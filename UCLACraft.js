@@ -1,8 +1,10 @@
 import { defs, tiny } from './examples/common.js';
 
 // Pull these names into this module's scope for convenience:
-const { vec3, vec4, color, hex_color, Mat4, Light, Shape, Material, Shader, Texture, Scene } = tiny;
+
+const { vec3, vec4, color, hex_color, Mat4, Light, Shape, Material, Shader, Texture, Scene, Matrix } = tiny;
 const { Triangle, Square, Tetrahedron, Windmill, Cube, Subdivision_Sphere, Cube_Outline,Textured_Phong,Axis_Arrows } = defs;
+
 import Block from './Block.js';
 
 import { BLOCK_SIZE, FLOOR_DIM } from './Constants.js'
@@ -24,11 +26,13 @@ export class UCLACraft_Base extends Scene {
             Cube: new Cube(),
             BaseCube: new Cube(),
             Cube_Outline: new Cube_Outline(),
+            Shadow: new Cube(),
         };
 
         const phong = new defs.Phong_Shader();
         const texturephong =  new defs.Textured_Phong();
         this.materials = {
+
             plastic: new Material(texturephong,
                 { ambient: 1, diffusivity: .8, specularity: .3,
                 texture:new Texture("assets/Grass.jpg", "LINEAR_MIPMAP_LINEAR") }),
@@ -43,8 +47,8 @@ export class UCLACraft_Base extends Scene {
             selected: new Material(phong, {
                 ambient: .8, diffusivity: 0.1, specularity: 0,
                 color: color(1, 1, 1, 0.2),
-                }),
             outline: new Material(new defs.Basic_Shader()),
+            shadow: new Material(new Shadow_Shader()),
         };
 
         this.MouseMonitor = new MousePicking(); //available: this.MouseMonitor.ray
@@ -63,6 +67,7 @@ export class UCLACraft_Base extends Scene {
 
         this.dummyBlock = new Block(this.shapes.Cube, vec3(0, 0, 0)); //a dummy block used for placing blocks on the floor
         //testing blocks
+
         this.createBlock(vec3(0, 1, 0));
         this.createBlock(vec3(1, 1, 1));
         this.createBlock(vec3(1, 2, 1));
@@ -70,6 +75,7 @@ export class UCLACraft_Base extends Scene {
         this.parity = false;
         this.flipMaterial();
         this.currentMaterial = this.materials.metal;
+
 
 
     }
@@ -141,6 +147,38 @@ export class UCLACraft_Base extends Scene {
 
         return res.map(item => coord_to_position(item));
     }
+
+
+    placeGroundShadow(context, program_state, block_position, light_position, sample_rate) { //TODO: DYNAMIC CALCULATION ACCORDING TO LIGHT SOURCE && REWRITE RAY CASTING FUNCTION
+        for (let x = -32; x < 33; x+=sample_rate)
+        {
+            for (let z = -32; z < 33; z+=sample_rate)
+            {
+                let ground_point = vec3(x, 1, z);
+                let ray = light_position.minus(vec3(x, 1, z)); //VECTOR FROM GROUND POINT TO LIGHT POINT
+                let blocked = false;
+                let ray_x, ray_y, ray_z;
+                for (let t = 0; t < 1; t+=0.02) { //TEST IF ANY POINT IN THE RAY IN INSIDE A CUBE
+                    ray_x = ground_point[0]+t*ray[0];
+                    ray_y = ground_point[1]+t*ray[1];
+                    ray_z = ground_point[2]+t*ray[2];
+                    if (ray_x <= block_position[0]+1 && ray_x >= block_position[0]-1 &&
+                        ray_y <= block_position[1]+1 && ray_y >= block_position[1]-1 &&
+                        ray_z <= block_position[2]+1 && ray_z >= block_position[2]-1) { //block position return the center of the block, and the block volume is defined by +-1
+                        blocked = true;
+                        break;
+                    }
+                }
+                if (blocked) {
+                    this.shapes.Shadow.draw(context, program_state, Mat4.identity().
+                        times(Mat4.translation(x-sample_rate/4, 1, z-sample_rate/4)).times(Mat4.scale(sample_rate/2, 0.01, sample_rate/2)), this.materials.shadow);
+                    // let translation = Mat4.identity().times(Mat4.translation(x,1,z)).times(Mat4.scale(1,0.1,1));
+                    // this.shapes.Shadow.draw(context,program_state,translation,this.materials.shadow);
+                }
+            }
+        }
+    }
+
     //update this.cursor
     //update this.outlines
     getPointing_at(program_state) {
@@ -313,8 +351,14 @@ export class UCLACraft_Base extends Scene {
         // the shader when coloring shapes.  See Light's class definition for inputs.
         const t = this.t = program_state.animation_time / 1000;
         const angle = Math.sin(t);
-        const light_position = Mat4.rotation(0, 1, 0, 0).times(vec4(0, -1, 1, 0));
+        const light_position = vec4(1+5*angle,20,5,0);
         program_state.lights = [new Light(light_position, color(1, 1, 1, 1), 1000)];
+
+        //if (this.blocks.length) 5->0.2 10->0.4 20->0.5 50->0.75 else->0.8
+        let sample_rate = 0.23*Math.log(this.blocks.length+2)-0.15;
+        if (this.blocks.length >=75) {sample_rate = 1.2;}
+        else if (this.blocks.length >=100) {sample_rate = 2;}
+        this.blocks.forEach(item => this.placeGroundShadow(context,program_state,item.position,light_position.to3(), sample_rate));
     }
 
 }
@@ -355,5 +399,46 @@ export class UCLACraft extends UCLACraft_Base {
         this.blocks.forEach(block => {
             block.draw(context, program_state);
         });
+    }
+
+
+}
+
+class Shadow_Shader extends Shader {
+    update_GPU(context, gpu_addresses, graphics_state, model_transform, material) {
+        // update_GPU():  Defining how to synchronize our JavaScript's variables to the GPU's:
+        const [P, C, M] = [graphics_state.projection_transform, graphics_state.camera_inverse, model_transform],
+            PCM = P.times(C).times(M);
+        context.uniformMatrix4fv(gpu_addresses.model_transform, false, Matrix.flatten_2D_to_1D(model_transform.transposed()));
+        context.uniformMatrix4fv(gpu_addresses.projection_camera_model_transform, false,
+            Matrix.flatten_2D_to_1D(PCM.transposed()));
+    }
+
+    shared_glsl_code() {
+        // ********* SHARED CODE, INCLUDED IN BOTH SHADERS *********
+        return `
+        precision mediump float;
+        varying vec4 point_position;
+        varying vec4 center;
+        `;
+    }
+
+    vertex_glsl_code() {
+        // ********* VERTEX SHADER *********
+        return this.shared_glsl_code() + `
+        attribute vec3 position;
+        uniform mat4 projection_camera_model_transform;
+        
+        void main(){
+            gl_Position = projection_camera_model_transform * vec4( position, 1.0 );
+        }`;
+    }
+
+    fragment_glsl_code() {
+        // ********* FRAGMENT SHADER *********
+        return this.shared_glsl_code() + `
+        void main(){
+            gl_FragColor = vec4( 0.35, 0.63, 0.15, 1);
+        }`;
     }
 }
