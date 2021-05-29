@@ -27,31 +27,38 @@ export class UCLACraft_Base extends Scene {
             BaseCube: new Cube(),
             Cube_Outline: new Cube_Outline(),
             Shadow: new Cube(),
+            Bright: new defs.Subdivision_Sphere(4),
+            Sun: new defs.Subdivision_Sphere(4),
         };
 
         const phong = new defs.Phong_Shader();
         const texturephong = new defs.Textured_Phong();
         this.materials = {
 
-            plastic: new Material(texturephong,
-                {
-                    ambient: 1, diffusivity: .8, specularity: .3,
-                    texture: new Texture("assets/Grass.jpg", "LINEAR_MIPMAP_LINEAR")
-                }),
+            plastic: new Material(texturephong, {
+                ambient: 1, diffusivity: 1, specularity: .3,
+                texture: new Texture("assets/Grass.jpg", "LINEAR_MIPMAP_LINEAR")
+            }),
             metal: new Material(texturephong, {
                 ambient: 1, diffusivity: .8, specularity: .8,
                 texture: new Texture("assets/RMarble.png", "LINEAR_MIPMAP_LINEAR")
             }),
             ice: new Material(texturephong, {
-                ambient: 1, diffusivity: .8, specularity: .2,
+                ambient: 0.8, diffusivity: .5, specularity: 1,
                 texture: new Texture("assets/CrackedIce.png", "LINEAR_MIPMAP_LINEAR")
             }),
+            sun: new Material(new defs.Phong_Shader(),
+                {ambient: 1, diffusivity: 0, specularity: 0, color: hex_color("#f35a38")}),
+            cube_light: new Material(new defs.Phong_Shader(),
+                {ambient: 1, diffusivity: 0, specularity: 0, color: hex_color("#fde79a")}),
             selected: new Material(phong, {
                 ambient: .8, diffusivity: 0.1, specularity: 0,
                 color: color(1, 1, 1, 0.2)
             }),
             outline: new Material(new defs.Basic_Shader()),
             shadow: new Material(new Shadow_Shader()),
+            Bright: new Material(new Bright_Shader()),
+            VeryBright: new Material(new Very_Bright_Shader()),
         };
 
         this.MouseMonitor = new MousePicking(); //available: this.MouseMonitor.ray
@@ -78,9 +85,6 @@ export class UCLACraft_Base extends Scene {
         this.parity = false;
         this.flipMaterial();
         this.currentMaterial = this.materials.metal;
-
-
-
     }
 
     add_mouse_controls(canvas) {
@@ -165,7 +169,10 @@ export class UCLACraft_Base extends Scene {
 
         return res.map(item => coord_to_position(item));
     }
-
+    //get distance
+    distance(x1,y1,z1,x2,y2,z2){
+        return ((x2-x1)**2+(y2-y1)**2+(z2-z1)**2)**0.5;
+    }
 
     placeGroundShadow(context, program_state, block_position, light_position, sample_rate) { //TODO: DYNAMIC CALCULATION ACCORDING TO LIGHT SOURCE && REWRITE RAY CASTING FUNCTION
         for (let x = -32; x < 33; x += sample_rate) {
@@ -185,13 +192,31 @@ export class UCLACraft_Base extends Scene {
                         break;
                     }
                 }
-                if (blocked) {
-                    this.shapes.Shadow.draw(context, program_state, Mat4.identity().
-                        times(Mat4.translation(x - sample_rate / 4, 1, z - sample_rate / 4)).times(Mat4.scale(sample_rate / 2, 0.01, sample_rate / 2)), this.materials.shadow);
-                    // let translation = Mat4.identity().times(Mat4.translation(x,1,z)).times(Mat4.scale(1,0.1,1));
-                    // this.shapes.Shadow.draw(context,program_state,translation,this.materials.shadow);
+                if (blocked){
+                    let appear = true;
+                    for (let i = 1; i < program_state.lights.length; i++){
+                        let light = program_state.lights[i].position;
+                        if (this.distance(x,1, z, light[0], light[1], light[2]) < 4){
+                            appear = false;
+                            break;
+                        }
+                    }
+                    if (appear){
+                        this.shapes.Shadow.draw(context, program_state, Mat4.identity().
+                            times(Mat4.translation(x - sample_rate / 4, 1, z - sample_rate / 4)).times(Mat4.scale(sample_rate / 2, 0.01, sample_rate / 2)), this.materials.shadow);
+                    }
                 }
             }
+        }
+    }
+
+    placeGroundLighting(context, program_state) {
+        for (let i = 1; i<program_state.lights.length; i++) {
+            let position = program_state.lights[i].position
+            let radius = (10-position[1]**2)**0.5;
+            let radius2 = (7-position[1]**2)**0.5;
+            this.shapes.Bright.draw(context, program_state, Mat4.translation(position[0], 1.01, position[2]).times(Mat4.scale(radius, 0.01, radius)), this.materials.Bright)
+            this.shapes.Bright.draw(context, program_state, Mat4.translation(position[0], 1.02, position[2]).times(Mat4.scale(radius2, 0.01, radius2)), this.materials.VeryBright)
         }
     }
 
@@ -340,6 +365,15 @@ export class UCLACraft_Base extends Scene {
             this.selected = [];
         }
     }
+    toLight() {
+        this.currentMaterial = this.materials.cube_light;
+        if (this.state === MODIFYING) {
+            this.selected.forEach((item, i) => {
+                item.material = this.materials.cube_light;
+            })
+            this.selected = [];
+        }
+    }
     make_control_panel() {
         // make_control_panel(): Sets up a panel of interactive HTML elements, including
         // buttons with key bindings for affecting this scene, and live info readouts.
@@ -364,6 +398,7 @@ export class UCLACraft_Base extends Scene {
         this.key_triggered_button("Change Texture to Ice", ["Control", "i"], () => this.toIce());
         this.key_triggered_button("Change Texture to Marble", ["Control", "m"], () => this.toMetal());
         this.key_triggered_button("Change Texture to Grass", ["Control", "g"], () => this.toGround());
+        this.key_triggered_button("Change Texture to Light", ["Control", "l"], () => this.toLight());
         this.key_triggered_button("Switch State", ["Enter"], () => {
             if (this.state === MODIFYING) {
                 this.state = PLACING;
@@ -399,7 +434,7 @@ export class UCLACraft_Base extends Scene {
 
         if (!context.scratchpad.mousePicking) {
             this.children.push(context.scratchpad.mousePicking = this.MouseMonitor);
-            console.log(context)
+            //console.log(context)
         }
 
         if (!this.mouse_control_added) {
@@ -414,17 +449,30 @@ export class UCLACraft_Base extends Scene {
         // *** Lights: *** Values of vector or point lights.  They'll be consulted by
         // the shader when coloring shapes.  See Light's class definition for inputs.
         const t = this.t = program_state.animation_time / 1000;
-        const angle = Math.sin(t);
-        const light_position = vec4(1 + 5 * angle, 20, 5, 0);
-        program_state.lights = [new Light(light_position, color(1, 1, 1, 1), 1000)];
+        const light_position = vec4(Math.cos(t/20)*40, Math.sin(t/20)*40, 5, 0);
+        program_state.lights = [new Light(light_position, color(1, 1, 1, 1), 10000)];
+        this.shapes.Sun.draw(context, program_state, Mat4.translation(Math.cos(t/20)*40, Math.sin(t/20)*40, 5).times(Mat4.scale(3,3,3)), this.materials.sun)
+
+        //place the light source is there is a block that is a light
+        this.blocks.forEach(item => {
+            if (item.material === this.materials.cube_light) {
+                //console.log(item.coord)
+                program_state.lights.push(new Light(item.position.to4(0), color(1, 1, 1, 1), 500))
+            }
+        });
+        //add lighting effect to the floor
+        this.placeGroundLighting(context, program_state);
 
         //if (this.blocks.length) 5->0.2 10->0.4 20->0.5 50->0.75 else->0.8
-        let sample_rate = 0.23 * Math.log(this.blocks.length + 2) - 0.15;
+        let sample_rate = 0.23 * Math.log(this.blocks.length + 2) - 0.16;
         if (this.blocks.length >= 75) { sample_rate = 1.2; }
         else if (this.blocks.length >= 100) { sample_rate = 2; }
-        this.blocks.forEach(item => this.placeGroundShadow(context, program_state, item.position, light_position.to3(), sample_rate));
+        this.blocks.forEach(item => {
+            if (item.material !== this.materials.cube_light) {
+                this.placeGroundShadow(context, program_state, item.coord, light_position.to3(), sample_rate)
+            }
+        });
     }
-
 }
 
 
@@ -502,7 +550,85 @@ class Shadow_Shader extends Shader {
         // ********* FRAGMENT SHADER *********
         return this.shared_glsl_code() + `
         void main(){
-            gl_FragColor = vec4( 0.35, 0.63, 0.15, 1);
+            gl_FragColor = vec4( 0.15, 0.3, 0.08, 1);
+        }`;
+    }
+}
+
+class Bright_Shader extends Shader {
+    update_GPU(context, gpu_addresses, graphics_state, model_transform, material) {
+        // update_GPU():  Defining how to synchronize our JavaScript's variables to the GPU's:
+        const [P, C, M] = [graphics_state.projection_transform, graphics_state.camera_inverse, model_transform],
+            PCM = P.times(C).times(M);
+        context.uniformMatrix4fv(gpu_addresses.model_transform, false, Matrix.flatten_2D_to_1D(model_transform.transposed()));
+        context.uniformMatrix4fv(gpu_addresses.projection_camera_model_transform, false,
+            Matrix.flatten_2D_to_1D(PCM.transposed()));
+    }
+
+    shared_glsl_code() {
+        // ********* SHARED CODE, INCLUDED IN BOTH SHADERS *********
+        return `
+        precision mediump float;
+        varying vec4 point_position;
+        varying vec4 center;
+        `;
+    }
+
+    vertex_glsl_code() {
+        // ********* VERTEX SHADER *********
+        return this.shared_glsl_code() + `
+        attribute vec3 position;
+        uniform mat4 projection_camera_model_transform;
+        
+        void main(){
+            gl_Position = projection_camera_model_transform * vec4( position, 1.0 );
+        }`;
+    }
+
+    fragment_glsl_code() {
+        // ********* FRAGMENT SHADER *********
+        return this.shared_glsl_code() + `
+        void main(){
+            gl_FragColor = vec4( 0.6, 0.68, 0.3, 1);
+        }`;
+    }
+}
+
+class Very_Bright_Shader extends Shader {
+    update_GPU(context, gpu_addresses, graphics_state, model_transform, material) {
+        // update_GPU():  Defining how to synchronize our JavaScript's variables to the GPU's:
+        const [P, C, M] = [graphics_state.projection_transform, graphics_state.camera_inverse, model_transform],
+            PCM = P.times(C).times(M);
+        context.uniformMatrix4fv(gpu_addresses.model_transform, false, Matrix.flatten_2D_to_1D(model_transform.transposed()));
+        context.uniformMatrix4fv(gpu_addresses.projection_camera_model_transform, false,
+            Matrix.flatten_2D_to_1D(PCM.transposed()));
+    }
+
+    shared_glsl_code() {
+        // ********* SHARED CODE, INCLUDED IN BOTH SHADERS *********
+        return `
+        precision mediump float;
+        varying vec4 point_position;
+        varying vec4 center;
+        `;
+    }
+
+    vertex_glsl_code() {
+        // ********* VERTEX SHADER *********
+        return this.shared_glsl_code() + `
+        attribute vec3 position;
+        uniform mat4 projection_camera_model_transform;
+        
+        void main(){
+            gl_Position = projection_camera_model_transform * vec4( position, 1.0 );
+        }`;
+    }
+
+    fragment_glsl_code() {
+        // ********* FRAGMENT SHADER *********
+        return this.shared_glsl_code() + `
+        void main(){
+            gl_FragColor = vec4( 0.8, 0.86, 0.36, 1);
         }`;
     }
 }
