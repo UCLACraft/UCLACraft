@@ -196,7 +196,7 @@ export class UCLACraft_Base extends Scene {
                     let appear = true;
                     for (let i = 1; i < program_state.lights.length; i++){
                         let light = program_state.lights[i].position;
-                        if (this.distance(x,1, z, light[0], light[1], light[2]) < 4){
+                        if (this.distance(x,1, z, 2*light[0], light[1], 2*light[2]) < 4){
                             appear = false;
                             break;
                         }
@@ -217,6 +217,24 @@ export class UCLACraft_Base extends Scene {
             let radius2 = (7-position[1]**2)**0.5;
             this.shapes.Bright.draw(context, program_state, Mat4.translation(position[0], 1.01, position[2]).times(Mat4.scale(radius, 0.01, radius)), this.materials.Bright)
             this.shapes.Bright.draw(context, program_state, Mat4.translation(position[0], 1.02, position[2]).times(Mat4.scale(radius2, 0.01, radius2)), this.materials.VeryBright)
+        }
+    }
+
+    addNightEffect(context, program_state, sun_position, light_position) {
+        let plastic = 1, metal = 1;
+        let ice = 0.8
+        if (sun_position < 1) {
+            this.materials.plastic.ambient = plastic/2;
+            this.materials.metal.ambient = metal/2;
+            this.materials.ice.ambient = ice/2;
+            program_state.lights[0] = new Light(light_position, color(0, 0, 0, 1), 10000);
+            this.materials.sun.ambient = 0;
+        } else {
+            this.materials.plastic.ambient = plastic;
+            this.materials.metal.ambient = metal;
+            this.materials.ice.ambient = ice;
+            program_state.lights[0] = new Light(light_position, color(1, 1, 1, 1), 10000);
+            this.materials.sun.ambient = 1;
         }
     }
 
@@ -457,7 +475,8 @@ export class UCLACraft_Base extends Scene {
         this.blocks.forEach(item => {
             if (item.material === this.materials.cube_light) {
                 //console.log(item.coord)
-                program_state.lights.push(new Light(item.position.to4(0), color(1, 1, 1, 1), 500))
+                let light = item.coord
+                program_state.lights.push(new Light(vec4(light[0]*2,light[1]*2,light[2]*2,0), color(1, 1, 1, 1), 500))
             }
         });
         //add lighting effect to the floor
@@ -469,9 +488,11 @@ export class UCLACraft_Base extends Scene {
         else if (this.blocks.length >= 100) { sample_rate = 2; }
         this.blocks.forEach(item => {
             if (item.material !== this.materials.cube_light) {
-                this.placeGroundShadow(context, program_state, item.coord, light_position.to3(), sample_rate)
+                this.placeGroundShadow(context, program_state, item.position, light_position.to3(), sample_rate)
             }
         });
+
+        this.addNightEffect(context, program_state, Math.sin(t/20)*40, light_position)
     }
 }
 
