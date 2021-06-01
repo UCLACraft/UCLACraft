@@ -2,7 +2,7 @@ import { defs, tiny } from './examples/common.js';
 
 // Pull these names into this module's scope for convenience:
 
-const { vec3, vec4, color, hex_color, Mat4, Light, Shape, Material, Shader, Texture, Scene, Matrix } = tiny;
+const { vec3, vec4, color, Color, hex_color, Mat4, Light, Shape, Material, Shader, Texture, Scene, Matrix } = tiny;
 const { Triangle, Square, Tetrahedron, Windmill, Cube, Subdivision_Sphere, Cube_Outline, Textured_Phong, Axis_Arrows } = defs;
 
 import Block from './Block.js';
@@ -15,6 +15,7 @@ import { coord_to_position, position_to_coord } from './helpers.js';
 
 const PLACING = 0;
 const MODIFYING = 1;
+
 
 export class UCLACraft_Base extends Scene {
 
@@ -29,10 +30,14 @@ export class UCLACraft_Base extends Scene {
             Shadow: new Cube(),
             Bright: new defs.Subdivision_Sphere(4),
             Sun: new defs.Subdivision_Sphere(4),
+            box: new Cube(),
+            Moon: new defs.Subdivision_Sphere(4),
+            Windmill: new Windmill(),
         };
 
         const phong = new defs.Phong_Shader();
         const texturephong = new defs.Textured_Phong();
+
         this.materials = {
             plastic: new Material(texturephong,
                 { ambient: 1, diffusivity: .8, specularity: .3,
@@ -47,6 +52,8 @@ export class UCLACraft_Base extends Scene {
             }),
             sun: new Material(new defs.Phong_Shader(),
                 {ambient: 1, diffusivity: 0, specularity: 0, color: hex_color("#f35a38")}),
+            moon: new Material(new defs.Phong_Shader(),
+                {ambient: 1, diffusivity: 0, specularity: 0, color: hex_color("#dceff5")}),
             cube_light: new Material(new defs.Phong_Shader(),
                 {ambient: 1, diffusivity: 0, specularity: 0, color: hex_color("#fde79a")}),
             selected: new Material(phong, {
@@ -57,6 +64,37 @@ export class UCLACraft_Base extends Scene {
             shadow: new Material(new Shadow_Shader()),
             Bright: new Material(new Bright_Shader()),
             VeryBright: new Material(new Very_Bright_Shader()),
+            down: new Material(texturephong, 
+            {
+                texture: new Texture("assets/negy.jpg"),
+                ambient: 1, diffusivity: 1, specularity: 1, color: Color.of(0,0,0,1 )
+            }),
+
+            right: new Material(texturephong, 
+            {
+                texture: new Texture("assets/posx.jpg"),
+                ambient: 1, diffusivity: 1, specularity: 1, color: Color.of(0,0,0,1 )
+            }),
+            back: new Material(texturephong, 
+            {
+                texture: new Texture("assets/posz.jpg"),
+                ambient: 1, diffusivity: 1, specularity: 1, color: Color.of(0,0,0,1 )
+            }),
+            left: new Material(texturephong, 
+            {
+                texture: new Texture("assets/negx.jpg"),
+                ambient: 1, diffusivity: 1, specularity: 1, color: Color.of(0,0,0,1 )
+            }),   
+            front: new Material(texturephong, 
+            {
+                texture: new Texture("assets/negz.jpg"),
+                ambient: 1, diffusivity: 1, specularity: 1, color: Color.of(0,0,0,1 )
+            }),   
+            up: new Material(texturephong, 
+            {
+                texture: new Texture("assets/posy.jpg"),
+                ambient: 1, diffusivity: 1, specularity: 1, color: Color.of(0,0,0,1 )
+            })
         };
 
         this.MouseMonitor = new MousePicking(); //available: this.MouseMonitor.ray
@@ -172,7 +210,7 @@ export class UCLACraft_Base extends Scene {
         return ((x2-x1)**2+(y2-y1)**2+(z2-z1)**2)**0.5;
     }
 
-    placeGroundShadow(context, program_state, block_position, light_position, sample_rate) { //TODO: DYNAMIC CALCULATION ACCORDING TO LIGHT SOURCE && REWRITE RAY CASTING FUNCTION
+    placeGroundShadow(context, program_state, block_position, light_position, sample_rate,moonlight_position) { //TODO: DYNAMIC CALCULATION ACCORDING TO LIGHT SOURCE && REWRITE RAY CASTING FUNCTION
         for (let x = -32; x < 33; x += sample_rate) {
             for (let z = -32; z < 33; z += sample_rate) {
                 let ground_point = vec3(x, 1, z);
@@ -206,6 +244,7 @@ export class UCLACraft_Base extends Scene {
                 }
             }
         }
+
     }
 
     placeGroundLighting(context, program_state) {
@@ -460,7 +499,7 @@ export class UCLACraft_Base extends Scene {
 
 
         program_state.projection_transform = Mat4.perspective(
-            Math.PI / 4, context.width / context.height, 1, 100);
+            Math.PI / 4, context.width / context.height, .1, 500);
 
         // *** Lights: *** Values of vector or point lights.  They'll be consulted by
         // the shader when coloring shapes.  See Light's class definition for inputs.
@@ -468,7 +507,9 @@ export class UCLACraft_Base extends Scene {
         const light_position = vec4(Math.cos(t/20)*40, Math.sin(t/20)*40, 5, 0);
         program_state.lights = [new Light(light_position, color(1, 1, 1, 1), 10000)];
         this.shapes.Sun.draw(context, program_state, Mat4.translation(Math.cos(t/20)*40, Math.sin(t/20)*40, 5).times(Mat4.scale(3,3,3)), this.materials.sun)
-
+        const moonlight_position = vec4(Math.cos(t/20 + Math.PI)*40, Math.sin(t/20 + Math.PI)*40, 5, 0);
+        program_state.lights = [new Light(moonlight_position, color(1, 1, 1, 1), 10000)];
+        this.shapes.Moon.draw(context, program_state, Mat4.translation(Math.cos(t/20 + Math.PI)*40, Math.sin(t/20 + Math.PI)*40, 5).times(Mat4.scale(3,3,3)), this.materials.moon)
         //place the light source is there is a block that is a light
         this.blocks.forEach(item => {
             if (item.material === this.materials.cube_light) {
@@ -498,6 +539,70 @@ export class UCLACraft_Base extends Scene {
 
 export class UCLACraft extends UCLACraft_Base {
 
+
+
+    createScene(context, program_state) {
+
+        const t = this.t = program_state.animation_time / 1000;
+        let temp_ambient = 0.5 + 0.5 * Math.sin(t/20);
+        let model_transform = Mat4.identity(); 
+
+        /// *********  BACKGROUND SCENE *********
+        //Create a scene
+        let sky_transform = Mat4.identity();
+     
+        
+        //floor
+        sky_transform = Mat4.identity();
+        sky_transform = sky_transform.times(Mat4.translation(0, -2, 0));
+        sky_transform = sky_transform.times(Mat4.scale(50,0.2,50));
+        this.shapes.box.draw(context, program_state, sky_transform, this.materials.down.override({ambient:temp_ambient})); 
+
+        //ceiling
+        sky_transform = Mat4.identity();
+       
+        
+        sky_transform = sky_transform.times(Mat4.translation(0, 50, 0));
+        sky_transform = sky_transform.times(Mat4.scale(50,0.2,50));
+        this.shapes.box.draw(context, program_state, sky_transform, this.materials.up.override({ambient:temp_ambient}) ); 
+
+        //right wall 
+        sky_transform = Mat4.identity();
+        
+       
+        sky_transform = sky_transform.times(Mat4.translation(50, 0, 0));
+        sky_transform = sky_transform.times(Mat4.scale(0.2,50,50));
+        this.shapes.box.draw(context, program_state, sky_transform, this.materials.right.override({ambient:temp_ambient}) );
+
+        //left wall 
+        sky_transform = Mat4.identity();
+       
+      
+        sky_transform = sky_transform.times(Mat4.translation(-50, 0, 0));
+        sky_transform = sky_transform.times(Mat4.scale(0.2,50,50));
+        this.shapes.box.draw(context, program_state, sky_transform, this.materials.left.override({ambient:temp_ambient}) );
+
+        //back wall 
+        sky_transform = Mat4.identity();
+        
+       
+        sky_transform = sky_transform.times(Mat4.translation(0, 0, -50));
+        sky_transform = sky_transform.times(Mat4.scale(50,50,0.2));
+        this.shapes.box.draw(context, program_state, sky_transform, this.materials.back.override({ambient:temp_ambient}));
+
+        //front wall 
+        sky_transform = Mat4.identity();
+     
+        sky_transform = sky_transform.times(Mat4.translation(0, 0, 50));
+        sky_transform = sky_transform.times(Mat4.scale(50,50,0.2));
+        this.shapes.box.draw(context, program_state, sky_transform, this.materials.front.override({ambient:temp_ambient}) );
+
+        /// ********* END BACKGROUND SCENE *********
+
+
+    }
+
+
     display(context, program_state) {
 
         // Call the setup code that we left inside the base class:
@@ -520,6 +625,15 @@ export class UCLACraft extends UCLACraft_Base {
         this.drawSelected(context, program_state);//draw selected
         this.drawCursor(context, program_state);//draw cursor
         this.drawOutline(context, program_state); //draw outlines
+        this.createScene(context, program_state);
+        this.drawWindMills(context,program_state);
+
+    }
+
+    drawWindMills(context,program_state){
+        let model_transform = Mat4.scale(10, 10, 10);
+        model_transform = model_transform.times(Mat4.translation(0, 3, 0));
+        this.shapes.Windmill.draw(context,program_state,model_transform,this.materials.plastic);
     }
 
     drawfloor(context, program_state) {
