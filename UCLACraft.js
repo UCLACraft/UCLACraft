@@ -34,18 +34,16 @@ export class UCLACraft_Base extends Scene {
         const phong = new defs.Phong_Shader();
         const texturephong = new defs.Textured_Phong();
         this.materials = {
-
-            plastic: new Material(texturephong, {
+            plastic: new Material(texturephong,
+                { ambient: 1, diffusivity: .8, specularity: .3,
+                texture:new Texture("assets/Grass.jpg", "LINEAR_MIPMAP_LINEAR") }),
+            metal: new Material(new defs.Fake_Bump_Map, {
                 ambient: 1, diffusivity: 1, specularity: .3,
-                texture: new Texture("assets/Grass.jpg", "LINEAR_MIPMAP_LINEAR")
-            }),
-            metal: new Material(texturephong, {
-                ambient: 1, diffusivity: .8, specularity: .8,
-                texture: new Texture("assets/RMarble.png", "LINEAR_MIPMAP_LINEAR")
-            }),
+                texture: new Texture("assets/BambooWall.png", "LINEAR_MIPMAP_LINEAR"),
+                }),
             ice: new Material(texturephong, {
-                ambient: 0.8, diffusivity: .5, specularity: 1,
-                texture: new Texture("assets/CrackedIce.png", "LINEAR_MIPMAP_LINEAR")
+                ambient: 1, diffusivity: .5, specularity: .5,
+                texture: new Texture("assets/RMarble.png", "LINEAR_MIPMAP_LINEAR"),
             }),
             sun: new Material(new defs.Phong_Shader(),
                 {ambient: 1, diffusivity: 0, specularity: 0, color: hex_color("#f35a38")}),
@@ -497,6 +495,7 @@ export class UCLACraft_Base extends Scene {
 }
 
 
+
 export class UCLACraft extends UCLACraft_Base {
 
     display(context, program_state) {
@@ -537,6 +536,7 @@ export class UCLACraft extends UCLACraft_Base {
 
 }
 
+
 class Shadow_Shader extends Shader {
     update_GPU(context, gpu_addresses, graphics_state, model_transform, material) {
         // update_GPU():  Defining how to synchronize our JavaScript's variables to the GPU's:
@@ -569,6 +569,8 @@ class Shadow_Shader extends Shader {
 
     fragment_glsl_code() {
         // ********* FRAGMENT SHADER *********
+        // A fragment is a pixel that's overlapped by the current triangle.
+        // Fragments affect the final image or get discarded due to depth.
         return this.shared_glsl_code() + `
         void main(){
             gl_FragColor = vec4( 0.15, 0.3, 0.08, 1);
@@ -653,3 +655,6 @@ class Very_Bright_Shader extends Shader {
         }`;
     }
 }
+
+
+
