@@ -11,12 +11,12 @@ import { coord_to_position, position_to_coord } from './helpers.js'
 import { BLOCK_SIZE, FLOOR_DIM } from './Constants.js'
 
 /*A data structure for multiple blocks processing*/
-export default class BlockGroup {
-    constructor(blocks) {
-        this.blocks = blocks
 
+export default class BlockGroup {
+    constructor(blocks) { //blocks: array of selected blocks
+        this.blocks = blocks
         this.anchor_coord = this.ComputeAnchor() //the coord for the anchor
-        this.relativeCoord = this.getRelativeCoord()
+        this.relativeCoord = this.ComputeRelativeCoord()
     }
 
     //get Anchor block coordinate
@@ -51,17 +51,37 @@ export default class BlockGroup {
         return vec3(x_center, y_center, z_center);
     }
 
-    //get relaive positions w.r.t the anchor
-    getRelativeCoord() {
+    //get relaive coordinates w.r.t the anchor
+    ComputeRelativeCoord() {
+        res = []
+        this.blocks.forEach(element => {
+            res.push(element.coord.minus(this.anchor_coord));
+        })
+        return res;
     }
 
     //return the outline position array
-    getOutlines() {
-
+    getOutlines(cursor_pos) { //cursor_pos: vec3: position of the cursor
+        res = [];
+        this.relativeCoord.forEach(element => {
+            res.push(vec3(element[0] * BLOCK_SIZE, element[1] * BLOCK_SIZE, element[2] * BLOCK_SIZE).plus(cursor_pos));
+        })
+        return res;
     }
 
+    //rotate 90 degree w.r.t the anchor block
     rotate(counterClockwise = true) {
-
+        this.relativeCoord.forEach((element, i) => {
+            if (counterClockwise) {
+                let x_coord = this.relativeCoord[i][0];
+                this.relativeCoord[i][0] = -this.relativeCoord[i][1];
+                this.relativeCoord[i][1] = x_coord;
+            } else {
+                let x_coord = this.relativeCoord[i][0];
+                this.relativeCoord[i][0] = this.relativeCoord[i][1];
+                this.relativeCoord[i][1] = -x_coord;
+            }
+        })
     }
 
 
