@@ -50,8 +50,13 @@ export class UCLACraft_Base extends Scene {
                 ambient: 1, diffusivity: .5, specularity: .5,
                 texture: new Texture("assets/RMarble.png", "LINEAR_MIPMAP_LINEAR"),
             }),
-            sun: new Material(new defs.Phong_Shader(),
-                {ambient: 1, diffusivity: 0, specularity: 0, color: hex_color("#f35a38")}),
+//             sun: new Material(new defs.Phong_Shader(),
+//                 {ambient: 1, diffusivity: 0, specularity: 0, color: hex_color("#f35a38")}),
+            sun: new Material(texturephong,
+                {ambient: 1, diffusivity: 0.5, specularity: .5, 
+                texture:new Texture('assets/sun.gif','LINEAR_MIPMAP_LINEAR')
+                }),
+
             moon: new Material(new defs.Phong_Shader(),
                 {ambient: 1, diffusivity: 0, specularity: 0, color: hex_color("#dceff5")}),
             cube_light: new Material(new defs.Phong_Shader(),
