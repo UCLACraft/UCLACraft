@@ -2,7 +2,7 @@ import { defs, tiny } from './examples/common.js';
 
 // Pull these names into this module's scope for convenience:
 
-const { vec3, vec4, color, hex_color, Mat4, Light, Shape, Material, Shader, Texture, Scene, Matrix } = tiny;
+const { vec, vec3, vec4, color, hex_color, Mat4, Light, Shape, Material, Shader, Texture, Scene, Matrix } = tiny;
 const { Triangle, Square, Tetrahedron, Windmill, Cube, Subdivision_Sphere, Cube_Outline, Textured_Phong, Axis_Arrows } = defs;
 
 import Block from './Block.js';
@@ -12,9 +12,30 @@ import { BLOCK_SIZE, FLOOR_DIM } from './Constants.js'
 import { MousePicking } from './MousePicking.js'
 import { coord_to_position, position_to_coord } from './helpers.js';
 
+import {Color_Phong_Shader, Shadow_Textured_Phong_Shader,
+    Depth_Texture_Shader_2D, Buffered_Texture, LIGHT_DEPTH_TEX_SIZE} from './shadow-demo-shaders.js'
 
 const PLACING = 0;
 const MODIFYING = 1;
+
+const Square_1 =
+    class Square extends tiny.Vertex_Buffer {
+        constructor() {
+            super("position", "normal", "texture_coord");
+            this.arrays.position = [
+                vec3(0, 0, 0), vec3(1, 0, 0), vec3(0, 1, 0),
+                vec3(1, 1, 0), vec3(1, 0, 0), vec3(0, 1, 0)
+            ];
+            this.arrays.normal = [
+                vec3(0, 0, 1), vec3(0, 0, 1), vec3(0, 0, 1),
+                vec3(0, 0, 1), vec3(0, 0, 1), vec3(0, 0, 1),
+            ];
+            this.arrays.texture_coord = [
+                vec(0, 0), vec(1, 0), vec(0, 1),
+                vec(1, 1), vec(1, 0), vec(0, 1)
+            ]
+        }
+    }
 
 export class UCLACraft_Base extends Scene {
 
@@ -29,6 +50,7 @@ export class UCLACraft_Base extends Scene {
             Shadow: new Cube(),
             Bright: new defs.Subdivision_Sphere(4),
             Sun: new defs.Subdivision_Sphere(4),
+            square_2d: new Square_1(),
         };
 
         const phong = new defs.Phong_Shader();
@@ -53,12 +75,12 @@ export class UCLACraft_Base extends Scene {
                 {ambient: 1, diffusivity: 0, specularity: 0, color: hex_color("#fde79a")}),
             selected: new Material(phong, {
                 ambient: .8, diffusivity: 0.1, specularity: 0,
-                color: color(1, 1, 1, 0.2)
+                color: color(1, 1, 1, 0.2),
             }),
             outline: new Material(new defs.Basic_Shader()),
             shadow: new Material(new Shadow_Shader()),
             Bright: new Material(new Bright_Shader()),
-            VeryBright: new Material(new Very_Bright_Shader()),
+            VeryBright: new Material(new Very_Bright_Shader())
         };
 
         this.MouseMonitor = new MousePicking(); //available: this.MouseMonitor.ray
@@ -78,13 +100,44 @@ export class UCLACraft_Base extends Scene {
         this.dummyBlock = new Block(this.shapes.Cube, vec3(0, 0, 0)); //a dummy block used for placing blocks on the floor
         //testing blocks
 
-        this.createBlock(vec3(0, 1, 0));
-        this.createBlock(vec3(1, 1, 1));
-        this.createBlock(vec3(1, 2, 1));
-        this.createBlock(vec3(1, 2, 2));
+        //this.createBlock(vec3(0, 1, 0));
+        // this.createBlock(vec3(1, 1, 1));
+        // this.createBlock(vec3(1, 2, 1));
+        // this.createBlock(vec3(1, 2, 2));
         this.parity = false;
         this.flipMaterial();
         this.currentMaterial = this.materials.metal;
+
+
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+        // For the teapot
+        this.stars = new Material(new Shadow_Textured_Phong_Shader(1), {
+            color: color(.5, .5, .5, 1),
+            ambient: .4, diffusivity: .5, specularity: .5,
+            color_texture: new Texture("assets/RMarble.png"),
+            light_depth_texture: null
+        });
+        // For the floor or other plain objects
+        this.floor = new Material(new Shadow_Textured_Phong_Shader(1), {
+            color: color(1, 1, 1, 1), ambient: .3, diffusivity: 0.6, specularity: 0.4, smoothness: 64,
+            color_texture: null,
+            light_depth_texture: null
+        })
+        // For the first pass
+        this.pure = new Material(new Color_Phong_Shader(), {
+        })
+        // For light source
+        this.light_src = new Material(new defs.Phong_Shader(), {
+            color: color(1, 1, 1, 1), ambient: 1, diffusivity: 0, specularity: 0
+        });
+        // For depth texture display
+        this.depth_tex =  new Material(new Depth_Texture_Shader_2D(), {
+            color: color(0, 0, .0, 1),
+            ambient: 1, diffusivity: 0, specularity: 0, texture: null
+        });
+
+        // To make sure texture initialization only does once
+        this.init_ok = false;
     }
 
     add_mouse_controls(canvas) {
@@ -428,26 +481,116 @@ export class UCLACraft_Base extends Scene {
         this.key_triggered_button("Delete", ["Backspace"], () => { if (this.state === MODIFYING) this.deleteSelected(); });
     }
 
+    texture_buffer_init(gl) {
+        // Depth Texture
+        this.lightDepthTexture = gl.createTexture();
+        // Bind it to TinyGraphics
+        this.light_depth_texture = new Buffered_Texture(this.lightDepthTexture);
+        this.stars.light_depth_texture = this.light_depth_texture
+        this.floor.light_depth_texture = this.light_depth_texture
+
+        this.lightDepthTextureSize = LIGHT_DEPTH_TEX_SIZE;
+        gl.bindTexture(gl.TEXTURE_2D, this.lightDepthTexture);
+        gl.texImage2D(
+            gl.TEXTURE_2D,      // target
+            0,                  // mip level
+            gl.DEPTH_COMPONENT, // internal format
+            this.lightDepthTextureSize,   // width
+            this.lightDepthTextureSize,   // height
+            0,                  // border
+            gl.DEPTH_COMPONENT, // format
+            gl.UNSIGNED_INT,    // type
+            null);              // data
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+
+        // Depth Texture Buffer
+        this.lightDepthFramebuffer = gl.createFramebuffer();
+        gl.bindFramebuffer(gl.FRAMEBUFFER, this.lightDepthFramebuffer);
+        gl.framebufferTexture2D(
+            gl.FRAMEBUFFER,       // target
+            gl.DEPTH_ATTACHMENT,  // attachment point
+            gl.TEXTURE_2D,        // texture target
+            this.lightDepthTexture,         // texture
+            0);                   // mip level
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+
+        // create a color texture of the same size as the depth texture
+        // see article why this is needed_
+        this.unusedTexture = gl.createTexture();
+        gl.bindTexture(gl.TEXTURE_2D, this.unusedTexture);
+        gl.texImage2D(
+            gl.TEXTURE_2D,
+            0,
+            gl.RGBA,
+            this.lightDepthTextureSize,
+            this.lightDepthTextureSize,
+            0,
+            gl.RGBA,
+            gl.UNSIGNED_BYTE,
+            null,
+        );
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        // attach it to the framebuffer
+        gl.framebufferTexture2D(
+            gl.FRAMEBUFFER,        // target
+            gl.COLOR_ATTACHMENT0,  // attachment point
+            gl.TEXTURE_2D,         // texture target
+            this.unusedTexture,         // texture
+            0);                    // mip level
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    }
+
+    render_scene(context, program_state, shadow_pass, draw_light_source=false, draw_shadow=false) {
+        // shadow_pass: true if this is the second pass that draw the shadow.
+        // draw_light_source: true if we want to draw the light source.
+        // draw_shadow: true if we want to draw the shadow
+
+        let light_position = this.light_position;
+        let light_color = this.light_color;
+        const t = program_state.animation_time/1000;
+
+        program_state.draw_shadow = draw_shadow;
+
+        if (draw_light_source && shadow_pass) {
+            this.shapes.Sun.draw(context, program_state,
+                Mat4.translation(Math.cos(t/20)*10, Math.sin(t/20)*10, 5).times(Mat4.scale(1,1,1)),
+                this.light_src.override({color: light_color}));
+        }
+
+        // for (let i of [-1, 1]) { // Spin the 3D model shapes as well.
+        //     const model_transform = Mat4.translation(2 * i, 3, 0)
+        //         .times(Mat4.rotation(t / 1000, -1, 2, 0))
+        //         .times(Mat4.rotation(-Math.PI / 2, 1, 0, 0));
+        //     this.shapes.teapot.draw(context, program_state, model_transform, shadow_pass? this.stars : this.pure);
+        // }
+
+        let model_transform_floor = Mat4.scale(this.floor.coor_x, 1, this.floor.coor_z);
+        let model_trans_floor = Mat4.scale(32, 0.1, 32);
+        this.shapes.Cube.draw(context, program_state, model_trans_floor, shadow_pass? this.floor : this.pure);
+        this.shapes.Cube.draw(context, program_state, Mat4.translation(1,3,1), shadow_pass? this.stars : this.pure);
+    }
+
     display(context, program_state) {
         // display():  Called once per frame of animation.  We'll isolate out
         // the code that actually draws things into Transforms_Sandbox, a
         // subclass of this Scene.  Here, the base class's display only does
         // some initial setup.
-
+        const gl = context.context;
         // Setup -- This part sets up the scene's overall camera matrix, projection matrix, and lights:
         if (!context.scratchpad.controls) {
             this.children.push(context.scratchpad.controls = new defs.Movement_Controls());
-
-
-            // Define the global camera and projection matrices, which are stored in program_state.  The camera
-            // matrix follows the usual format for transforms, but with opposite values (cameras exist as
-            // inverted matrices).  The projection matrix follows an unusual format and determines how depth is
-            // treated when projecting 3D points onto a plane.  The Mat4 functions perspective() and
-            // orthographic() automatically generate valid matrices for one.  The input arguments of
-            // perspective() are field of view, aspect ratio, and distances to the near plane and far plane.
-            let camera_pos = Mat4.translation(0, 3, 10);
-
-            program_state.set_camera(Mat4.inverse(camera_pos));
+            // Define the global camera and projection matrices, which are stored in program_state.
+            program_state.set_camera(Mat4.look_at(
+                vec3(0, 12, 12),
+                vec3(0, 2, 0),
+                vec3(0, 1, 0)
+            )); // Locate the camera here
         }
 
         if (!context.scratchpad.mousePicking) {
@@ -460,6 +603,15 @@ export class UCLACraft_Base extends Scene {
             this.mouse_control_added = true;
         }
 
+        if (!this.init_ok) {
+            const ext = gl.getExtension('WEBGL_depth_texture');
+            if (!ext) {
+                return alert('need WEBGL_depth_texture');  // eslint-disable-line
+            }
+            this.texture_buffer_init(gl);
+
+            this.init_ok = true;
+        }
 
         program_state.projection_transform = Mat4.perspective(
             Math.PI / 4, context.width / context.height, 1, 100);
@@ -467,61 +619,109 @@ export class UCLACraft_Base extends Scene {
         // *** Lights: *** Values of vector or point lights.  They'll be consulted by
         // the shader when coloring shapes.  See Light's class definition for inputs.
         const t = this.t = program_state.animation_time / 1000;
-        const light_position = vec4(Math.cos(t/20)*40, Math.sin(t/20)*40, 5, 0);
-        program_state.lights = [new Light(light_position, color(1, 1, 1, 1), 10000)];
-        this.shapes.Sun.draw(context, program_state, Mat4.translation(Math.cos(t/20)*40, Math.sin(t/20)*40, 5).times(Mat4.scale(3,3,3)), this.materials.sun)
+        const light_position = vec4(Math.cos(t/20)*10, Math.sin(t/20)*10, 5, 0);
+        //program_state.lights = [new Light(light_position, color(1, 1, 1, 1), 10000)];
+        //this.shapes.Sun.draw(context, program_state, Mat4.translation(Math.cos(t/20)*40, Math.sin(t/20)*40, 5).times(Mat4.scale(3,3,3)), this.materials.sun)
 
-        //place the light source is there is a block that is a light
-        this.blocks.forEach(item => {
-            if (item.material === this.materials.cube_light) {
-                //console.log(item.coord)
-                let light = item.coord
-                program_state.lights.push(new Light(vec4(light[0]*2,light[1]*2,light[2]*2,0), color(1, 1, 1, 1), 500))
-            }
-        });
-        //add lighting effect to the floor
-        this.placeGroundLighting(context, program_state);
+        // The position of the light
+        this.light_position = light_position;
+        // The color of the light
+        this.light_color = color(
+            0.667 + Math.sin(t*2) / 3,
+            0.667 + Math.sin(t*1000/1500) / 3,
+            0.667 + Math.sin(t*1000/3500) / 3,
+            1)
+        // This is a rough target of the light.
+        // Although the light is point light, we need a target to set the POV of the light
+        this.light_view_target = vec4(0, 0, 0, 1);
+        this.light_field_of_view = 30 * Math.PI / 180.0; // 130 degree
+        program_state.lights = [new Light(this.light_position, this.light_color, 1000)];
 
-        //if (this.blocks.length) 5->0.2 10->0.4 20->0.5 50->0.75 else->0.8
-        let sample_rate = 0.23 * Math.log(this.blocks.length + 2) - 0.16;
-        if (this.blocks.length >= 75) { sample_rate = 1.2; }
-        else if (this.blocks.length >= 100) { sample_rate = 2; }
-        this.blocks.forEach(item => {
-            if (item.material !== this.materials.cube_light) {
-                this.placeGroundShadow(context, program_state, item.position, light_position.to3(), sample_rate)
-            }
-        });
+        // Step 1: set the perspective and camera to the POV of light
+        const light_view_mat = Mat4.look_at(
+            vec3(this.light_position[0], this.light_position[1], this.light_position[2]),
+            vec3(this.light_view_target[0], this.light_view_target[1], this.light_view_target[2]),
+            vec3(0, 1, 0) // assume the light to target will have a up dir of +y, maybe need to change according to your case
+        );
+        const light_proj_mat = Mat4.perspective(this.light_field_of_view, 1, 0.5, 10000);
+        // Bind the Depth Texture Buffer
+        gl.bindFramebuffer(gl.FRAMEBUFFER, this.lightDepthFramebuffer);
+        gl.viewport(0, 0, this.lightDepthTextureSize, this.lightDepthTextureSize);
+        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+        // Prepare uniforms
+        program_state.light_view_mat = light_view_mat;
+        program_state.light_proj_mat = light_proj_mat;
+        program_state.light_tex_mat = light_proj_mat;
+        program_state.view_mat = light_view_mat;
+        program_state.projection_transform = light_proj_mat;
+        this.render_scene(context, program_state, false,false, false);
 
-        this.addNightEffect(context, program_state, Math.sin(t/20)*40, light_position)
+        // Step 2: unbind, draw to the canvas
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+        gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
+        program_state.view_mat = program_state.camera_inverse;
+        program_state.projection_transform = Mat4.perspective(Math.PI / 4, context.width / context.height, 0.5, 1000);
+        this.render_scene(context, program_state, true,true, true);
+
+        // Step 3: display the textures
+        this.shapes.square_2d.draw(context, program_state,
+            Mat4.translation(-.99, .08, 0).times(
+                Mat4.scale(0.5, 0.5 * gl.canvas.width / gl.canvas.height, 1)
+            ),
+            this.depth_tex.override({texture: this.lightDepthTexture})
+        );
+
+
+
+        // //place the light source is there is a block that is a light
+        // this.blocks.forEach(item => {
+        //     if (item.material === this.materials.cube_light) {
+        //         //console.log(item.coord)
+        //         let light = item.coord
+        //         program_state.lights.push(new Light(vec4(light[0]*2,light[1]*2,light[2]*2,0), color(1, 1, 1, 1), 500))
+        //     }
+        // });
+        // //add lighting effect to the floor
+        // this.placeGroundLighting(context, program_state);
+        // //if (this.blocks.length) 5->0.2 10->0.4 20->0.5 50->0.75 else->0.8
+        // let sample_rate = 0.23 * Math.log(this.blocks.length + 2) - 0.16;
+        // if (this.blocks.length >= 75) { sample_rate = 1.2; }
+        // else if (this.blocks.length >= 100) { sample_rate = 2; }
+        // this.blocks.forEach(item => {
+        //     if (item.material !== this.materials.cube_light) {
+        //         this.placeGroundShadow(context, program_state, item.position, light_position.to3(), sample_rate)
+        //     }
+        // });
+        // this.addNightEffect(context, program_state, Math.sin(t/20)*40, light_position)
     }
 }
 
 
 export class UCLACraft extends UCLACraft_Base {
 
-    display(context, program_state) {
-
-        // Call the setup code that we left inside the base class:
-        super.display(context, program_state);
-        const t = this.t = program_state.animation_time / 1000;
-
-        const blue = hex_color("#1a9ffa"), yellow = hex_color("#fdc03a")
-        // Variable model_transform will be a local matrix value that helps us position shapes.
-        // It starts over as the identity every single frame - coordinate axes at the origin.
-        // let model_transform = Mat4.identity();
-
-        // model_transform = model_transform.times(Mat4.translation(0, 0, 0));
-        // // Draw the top box:
-        // this.shapes.Cube.draw(context, program_state, model_transform, this.materials.plastic.override(blue));
-        this.drawfloor(context, program_state);
-        this.drawBlocks(context, program_state);
-
-        this.getPointing_at(program_state); //fill in this.selected this.outlines
-
-        this.drawSelected(context, program_state);//draw selected
-        this.drawCursor(context, program_state);//draw cursor
-        this.drawOutline(context, program_state); //draw outlines
-    }
+    // display(context, program_state) {
+    //
+    //     // Call the setup code that we left inside the base class:
+    //     super.display(context, program_state);
+    //     const t = this.t = program_state.animation_time / 1000;
+    //
+    //     const blue = hex_color("#1a9ffa"), yellow = hex_color("#fdc03a")
+    //     // Variable model_transform will be a local matrix value that helps us position shapes.
+    //     // It starts over as the identity every single frame - coordinate axes at the origin.
+    //     // let model_transform = Mat4.identity();
+    //
+    //     // model_transform = model_transform.times(Mat4.translation(0, 0, 0));
+    //     // // Draw the top box:
+    //     // this.shapes.Cube.draw(context, program_state, model_transform, this.materials.plastic.override(blue));
+    //     // this.drawfloor(context, program_state);
+    //     // this.drawBlocks(context, program_state);
+    //
+    //     this.getPointing_at(program_state); //fill in this.selected this.outlines
+    //
+    //     this.drawSelected(context, program_state);//draw selected
+    //     this.drawCursor(context, program_state);//draw cursor
+    //     this.drawOutline(context, program_state); //draw outlines
+    // }
 
     drawfloor(context, program_state) {
         let model_transform = Mat4.scale(this.floor.coor_x, 1, this.floor.coor_z);
