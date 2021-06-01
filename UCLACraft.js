@@ -16,6 +16,31 @@ import { coord_to_position, position_to_coord } from './helpers.js';
 const PLACING = 0;
 const MODIFYING = 1;
 
+const Sky_Box = defs.Sky_Box =
+class Sky_Box extends Textured_Phong
+{                                // **Fake_Bump_Map** Same as Phong_Shader, except adds a line of code to
+                                 // compute a new normal vector, perturbed according to texture color.
+  fragment_glsl_code()
+    {                            // ********* FRAGMENT SHADER ********* 
+      return this.shared_glsl_code() + `
+        varying vec2 f_tex_coord;
+        uniform sampler2D texture;
+        void main()
+          { 
+            vec3 E = normalize( camera_center - vertex_worldspace );
+                                                                   // Sample the texture image in the correct place:
+            vec4 tex_color = texture2D( texture, .5 * vec2( E ) + vec2( .5 ) );
+            if( tex_color.w < .01 ) discard;
+                             // Slightly disturb normals based on sampling the same image that was used for texturing:
+            vec3 bumped_N  = N + tex_color.rgb - .5*vec3(1,1,1);
+                                                                     // Compute an initial (ambient) color:
+            gl_FragColor = vec4( ( tex_color.xyz + shape_color.xyz ) * ambient, shape_color.w * tex_color.w ); 
+                                                                     // Compute the final color with contributions from lights:
+            gl_FragColor.xyz += phong_model_lights( normalize( bumped_N ), vertex_worldspace );
+          } ` ;
+    }
+}
+
 export class UCLACraft_Base extends Scene {
 
     constructor() {                  // constructor(): Scenes begin by populating initial values like the Shapes and Materials they'll need.
