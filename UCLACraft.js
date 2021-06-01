@@ -21,14 +21,18 @@ export class UCLACraft_Base extends Scene {
     constructor() {                  // constructor(): Scenes begin by populating initial values like the Shapes and Materials they'll need.
         super();
         this.floor = { coordinates: this.getFloorCoordinates(FLOOR_DIM, FLOOR_DIM), coor_x: FLOOR_DIM, coor_z: FLOOR_DIM } //floor: (2*FLOOR_DIM)*(2*FLOOR_DIM)
-
+        
         this.shapes = {
             Cube: new Cube(),
             BaseCube: new Cube(),
             Cube_Outline: new Cube_Outline(),
             Shadow: new Cube(),
+            sun: new defs.Subdivision_Sphere(4),
+            sky: new Square(),
+            
         };
 
+        //const t = program_state.animation_time / 1000; // 1 sec
         const phong = new defs.Phong_Shader();
         const texturephong = new defs.Textured_Phong();
         this.materials = {
@@ -52,6 +56,33 @@ export class UCLACraft_Base extends Scene {
             }),
             outline: new Material(new defs.Basic_Shader()),
             shadow: new Material(new Shadow_Shader()),
+
+            sky_material_xpos: new Material(texturephong,{ 
+                ambient: 1, diffusivity:0.1, specularity: .8,
+                texture: new Texture("assets/xpos1.png","NEAREST")
+                }),
+            sky_material_xneg: new Material(texturephong,{ 
+                ambient: 1, diffusivity:0.1, specularity: .8,
+                texture: new Texture("assets/xneg3.png","NEAREST")
+                }),
+            sky_material_ypos: new Material(texturephong,{ 
+                ambient: 1, diffusivity:0.1, specularity: .8,
+                texture: new Texture("assets/ypos2.png","NEAREST")
+                }),
+            sky_material_yneg: new Material(texturephong,{ 
+                ambient: 1, diffusivity:0.1, specularity: .8,
+                texture: new Texture("assets/yneg4.png","NEAREST")
+                }),
+            floor: new Material(texturephong,{ 
+                ambient: 1, diffusivity:0.1, specularity: .8,
+                texture: new Texture("assets/floor.png","NEAREST")
+                }),
+         
+            sun_material: new Material(phong,
+            {
+                ambient: 0, diffusivity: 1, specularity: 0,
+                color: hex_color("#fbff00")
+            }),
         };
 
         this.MouseMonitor = new MousePicking(); //available: this.MouseMonitor.ray
@@ -418,6 +449,7 @@ export class UCLACraft_Base extends Scene {
         const light_position = vec4(1 + 5 * angle, 20, 5, 0);
         program_state.lights = [new Light(light_position, color(1, 1, 1, 1), 1000)];
 
+
         //if (this.blocks.length) 5->0.2 10->0.4 20->0.5 50->0.75 else->0.8
         let sample_rate = 0.23 * Math.log(this.blocks.length + 2) - 0.15;
         if (this.blocks.length >= 75) { sample_rate = 1.2; }
@@ -429,6 +461,50 @@ export class UCLACraft_Base extends Scene {
 
 
 export class UCLACraft extends UCLACraft_Base {
+
+    createScene(context, program_state) {
+
+    let t = program_state.animation_time / 1000;
+    let model_transform = Mat4.identity();
+    let floor_model_transform = model_transform.times(Mat4.scale(48, 48, 2));
+    //floor_model_transform = model_transform.times(Mat4.rotation(-Math.PI / 2, 1, , 0))
+    floor_model_transform = floor_model_transform.times(Mat4.translation(0, 0.2, -24));
+   this.shapes.sky.draw(context, program_state, floor_model_transform, this.materials.sky_material_xpos.override({ambient:0.5 + 0.4 * Math.sin(Math.PI / 2 + t/5)}));
+
+     let wall_model_transform_1 = floor_model_transform
+       .times(Mat4.translation(0, 0, 48))
+       //.times(Mat4.rotation(-Math.PI / 2, 0, 1, 0))
+       //.times(Mat4.translation(0, 0, 1))
+
+       this.shapes.sky.draw(context, program_state, wall_model_transform_1, this.materials.sky_material_xneg.override({ambient:0.5 + 0.4 * Math.sin(Math.PI / 2 + t/5)}));
+
+    let wall_model_transform_2 = floor_model_transform
+      .times(Mat4.translation(0, 0, 24))
+      .times(Mat4.translation(1, 0, 0))
+      .times(Mat4.rotation(Math.PI / 2, 0, 1, 0))
+      .times(Mat4.scale(24, 1, 1));
+      this.shapes.sky.draw(context, program_state, wall_model_transform_2, this.materials.sky_material_ypos.override({ambient:0.5 + 0.4 * Math.sin(Math.PI / 2 + t/5)}));
+
+    let wall_model_transform_3 = floor_model_transform
+      .times(Mat4.translation(0, 0, 24))
+      .times(Mat4.translation(-1, 0, 0))
+      .times(Mat4.rotation(Math.PI / 2, 0, 1, 0))
+      .times(Mat4.scale(24, 1, 1));
+     this.shapes.sky.draw(context, program_state, wall_model_transform_3, this.materials.sky_material_ypos.override({ambient:0.5 + 0.4 * Math.sin(Math.PI / 2 + t/5)}));
+
+     let wall_model_transform_4 =floor_model_transform
+       .times(Mat4.translation(0, 0, 24))
+       .times(Mat4.rotation(-Math.PI / 2, 1, 0, 0))
+       .times(Mat4.scale(1, 24, 1))
+        .times(Mat4.translation(0, 0, -0.2));
+    this.shapes.sky.draw(context, program_state, wall_model_transform_4, this.materials.floor.override({ambient:0.5 + 0.4 * Math.sin(Math.PI / 2 + t/5)}));
+
+//     let ceiling_model_transform_ = floor_model_transform
+//       .times(Mat4.translation(0, 1, 1))
+//       .times(Mat4.rotation(Math.PI / 2, 1, 0, 0))
+//     this.shapes.sky.draw(context, program_state, ceiling_model_transform_, this.materials.sky_material);
+  }
+
 
     display(context, program_state) {
 
@@ -452,6 +528,10 @@ export class UCLACraft extends UCLACraft_Base {
         this.drawSelected(context, program_state);//draw selected
         this.drawCursor(context, program_state);//draw cursor
         this.drawOutline(context, program_state); //draw outlines
+
+        this.createScene(context, program_state);
+        //this.drawsky(context,program_state);
+        //this.drawsun(context, program_state);
     }
 
     drawfloor(context, program_state) {
@@ -459,10 +539,26 @@ export class UCLACraft extends UCLACraft_Base {
         this.shapes.Cube.draw(context, program_state, model_transform, this.materials.plastic);
     }
 
+    drawsky(context,program_state){
+        let model_transform = Mat4.scale(100000, 20, 100000);
+        this.shapes.Cube.draw(context, program_state, model_transform,this.materials.sky_material );
+    }
+
     drawBlocks(context, program_state) {
         this.blocks.forEach(block => {
             block.draw(context, program_state);
         });
+    }
+    drawsun(context,program_state){
+        let radius = 5;
+        let model_transform = Mat4.translation(15, 15, 0);
+        //model_transform = Mat4.scale(radius, radius, radius);
+        //const light_position = vec4(1, 5, 5, 1);
+        //program_state.lights = [new Light (light_position, color(1,1, 1, 1),),10 *10];
+         const light_position = vec4(-1, 0,0, 0);
+        program_state.lights = [new Light(light_position, color(1, 1, 1, 1), 1000)];
+
+        this.shapes.sun.draw(context, program_state, model_transform, this.materials.sun_material);
     }
 
 
