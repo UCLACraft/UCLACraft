@@ -33,7 +33,6 @@ export class UCLACraft_Base extends Scene {
         const texturephong =  new defs.Textured_Phong();
         const fakebump = new Fake_Bump_Map();
         this.materials = {
-
             plastic: new Material(texturephong,
                 { ambient: 1, diffusivity: .8, specularity: .3,
                 texture:new Texture("assets/Grass.jpg", "LINEAR_MIPMAP_LINEAR") }),
@@ -41,7 +40,6 @@ export class UCLACraft_Base extends Scene {
                 ambient: 1, diffusivity: .5, specularity: .3,
                 texture: new Texture("assets/RomanMosaic.png", "LINEAR_MIPMAP_LINEAR"),
                 depth: new Texture("assets/RMosaicHeight.png","LINEAR_MIPMAP_LINEAR")
-
                 }),
             ice: new Material(texturephong, {
                 ambient: 1, diffusivity: .5, specularity: .3,
@@ -49,10 +47,10 @@ export class UCLACraft_Base extends Scene {
             }),
             selected: new Material(phong, {
                 ambient: .8, diffusivity: 0.1, specularity: 0,
-                color: color(1, 1, 1, 0.2),
+                color: color(1, 1, 1, 0.2)}),
             outline: new Material(new defs.Basic_Shader()),
             shadow: new Material(new Shadow_Shader()),
-        };
+        }
 
         this.MouseMonitor = new MousePicking(); //available: this.MouseMonitor.ray
         this.occupied_coords = [] //list of vec3 that record coordinates of blocks(both real and pseudo)
@@ -403,7 +401,7 @@ export class UCLACraft extends UCLACraft_Base {
             block.draw(context, program_state);
         });
     }
-<<<<<<< HEAD
+
 }
 
 class Fake_Bump_Map extends Textured_Phong {
@@ -430,6 +428,7 @@ class Fake_Bump_Map extends Textured_Phong {
                     f_tex_coord = texture_coord;
                   } `;
     }
+
     fragment_glsl_code() {
         // ********* FRAGMENT SHADER *********
         return this.shared_glsl_code() + `
@@ -448,9 +447,8 @@ class Fake_Bump_Map extends Textured_Phong {
                     // Compute the final color with contributions from lights:
                     gl_FragColor.xyz += phong_model_lights( normalize( bumped_N ), vertex_worldspace );
                   } `;
-=======
 
-
+    }
 }
 
 class Shadow_Shader extends Shader {
@@ -487,8 +485,7 @@ class Shadow_Shader extends Shader {
         // ********* FRAGMENT SHADER *********
         return this.shared_glsl_code() + `
         void main(){
-            gl_FragColor = vec4( 0.35, 0.63, 0.15, 1);
+            gl_FragColor = vec4( 0, 0, 0, 1);
         }`;
->>>>>>> 103408caf113a9bc9da49c2ba290fd8c014b8ddd
     }
 }
