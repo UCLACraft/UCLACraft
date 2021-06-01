@@ -28,17 +28,20 @@ export class UCLACraft_Base extends Scene {
 
         const phong = new defs.Phong_Shader();
         const texturephong =  new defs.Textured_Phong();
+        const fakebump = new Fake_Bump_Map();
         this.materials = {
             plastic: new Material(texturephong,
                 { ambient: 1, diffusivity: .8, specularity: .3,
                 texture:new Texture("assets/Grass.jpg", "LINEAR_MIPMAP_LINEAR") }),
-            metal: new Material(texturephong, {
-                ambient: 1, diffusivity: .8, specularity: .8,
-                texture: new Texture("assets/RMarble.png", "LINEAR_MIPMAP_LINEAR")
+            metal: new Material(fakebump, {
+                ambient: 1, diffusivity: .5, specularity: .3,
+                texture: new Texture("assets/RomanMosaic.png", "LINEAR_MIPMAP_LINEAR"),
+                depth: new Texture("assets/RMosaicHeight.png","LINEAR_MIPMAP_LINEAR")
+
                 }),
             ice: new Material(texturephong, {
-                ambient: 1, diffusivity: .8, specularity: .2,
-                texture: new Texture("assets/CrackedIce.png", "LINEAR_MIPMAP_LINEAR")
+                ambient: 1, diffusivity: .5, specularity: .3,
+                texture: new Texture("assets/RomanMosaic.png", "LINEAR_MIPMAP_LINEAR")
             }),
             selected: new Material(phong, {
                 ambient: .8, diffusivity: 0.1, specularity: 0,
@@ -355,5 +358,50 @@ export class UCLACraft extends UCLACraft_Base {
         this.blocks.forEach(block => {
             block.draw(context, program_state);
         });
+    }
+}
+
+class Fake_Bump_Map extends Textured_Phong {
+    // **Fake_Bump_Map** Same as Phong_Shader, except adds a line of code to
+    // compute a new normal vector, perturbed according to texture color.
+    vertex_glsl_code() {
+        // ********* VERTEX SHADER *********
+        return this.shared_glsl_code() + `
+                varying vec2 f_tex_coord;
+                attribute vec3 position, normal;                            
+                // Position is expressed in object coordinates.
+                attribute vec2 texture_coord;
+                
+                uniform mat4 model_transform;
+                uniform mat4 projection_camera_model_transform;
+        
+                void main(){                                                                   
+                    // The vertex's final resting place (in NDCS):
+                    gl_Position = projection_camera_model_transform * vec4( position, 1.0 );
+                    // The final normal vector in screen space.
+                    N = normalize( mat3( model_transform ) * normal / squared_scale);
+                    vertex_worldspace = ( model_transform * vec4( position, 1.0 ) ).xyz;
+                    // Turn the per-vertex texture coordinate into an interpolated variable.
+                    f_tex_coord = texture_coord;
+                  } `;
+    }
+    fragment_glsl_code() {
+        // ********* FRAGMENT SHADER *********
+        return this.shared_glsl_code() + `
+                varying vec2 f_tex_coord;
+                uniform sampler2D texture;
+                uniform sampler2D depth;
+        
+                void main(){
+                    // Sample the texture image in the correct place:
+                    vec4 tex_color = texture2D( depth, f_tex_coord );
+                    if( tex_color.w < .01 ) discard;
+                    // Slightly disturb normals based on sampling the same image that was used for texturing:
+                    vec3 bumped_N  = N + tex_color.rgb - 0.6*vec3(1,1,1);
+                    // Compute an initial (ambient) color:
+                    gl_FragColor = vec4( ( tex_color.xyz + shape_color.xyz ) * ambient, shape_color.w * tex_color.w ); 
+                    // Compute the final color with contributions from lights:
+                    gl_FragColor.xyz += phong_model_lights( normalize( bumped_N ), vertex_worldspace );
+                  } `;
     }
 }
