@@ -244,6 +244,39 @@ export class UCLACraft_Base extends Scene {
                 }
             }
         }
+         for (let x = -32; x < 33; x += sample_rate) {
+            for (let z = -32; z < 33; z += sample_rate) {
+                let ground_point = vec3(x, 1, z);
+                let ray = moonlight_position.minus(vec3(x, 1, z)); //VECTOR FROM GROUND POINT TO LIGHT POINT
+                let blocked = false;
+                let ray_x, ray_y, ray_z;
+                for (let t = 0; t < 1; t += 0.02) { //TEST IF ANY POINT IN THE RAY IN INSIDE A CUBE
+                    ray_x = ground_point[0] + t * ray[0];
+                    ray_y = ground_point[1] + t * ray[1];
+                    ray_z = ground_point[2] + t * ray[2];
+                    if (ray_x <= block_position[0] + 1 && ray_x >= block_position[0] - 1 &&
+                        ray_y <= block_position[1] + 1 && ray_y >= block_position[1] - 1 &&
+                        ray_z <= block_position[2] + 1 && ray_z >= block_position[2] - 1) { //block position return the center of the block, and the block volume is defined by +-1
+                        blocked = true;
+                        break;
+                    }
+                }
+                if (blocked){
+                    let appear = true;
+                    for (let i = 1; i < program_state.lights.length; i++){
+                        let light = program_state.lights[i].position;
+                        if (this.distance(x,1, z, 2*light[0], light[1], 2*light[2]) < 4){
+                            appear = false;
+                            break;
+                        }
+                    }
+                    if (appear){
+                        this.shapes.Shadow.draw(context, program_state, Mat4.identity().
+                            times(Mat4.translation(x - sample_rate / 4, 1, z - sample_rate / 4)).times(Mat4.scale(sample_rate / 2, 0.01, sample_rate / 2)), this.materials.shadow);
+                    }
+                }
+            }
+        }
 
     }
 
@@ -527,7 +560,7 @@ export class UCLACraft_Base extends Scene {
         else if (this.blocks.length >= 100) { sample_rate = 2; }
         this.blocks.forEach(item => {
             if (item.material !== this.materials.cube_light) {
-                this.placeGroundShadow(context, program_state, item.position, light_position.to3(), sample_rate)
+                this.placeGroundShadow(context, program_state, item.position, light_position.to3(), sample_rate,moonlight_position.to3())
             }
         });
 
