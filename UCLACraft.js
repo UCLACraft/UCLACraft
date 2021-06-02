@@ -50,10 +50,10 @@ export class UCLACraft_Base extends Scene {
             BaseCube: new Cube(),
             Cube_Outline: new Cube_Outline(),
             Shadow: new Cube(),
-            Bright: new defs.Subdivision_Sphere(4),
-            Sun: new defs.Subdivision_Sphere(4),
+            Bright: new defs.Subdivision_Sphere(6),
+            Sun: new defs.Subdivision_Sphere(6),
             box: new Cube(),
-            Moon: new defs.Subdivision_Sphere(4),
+            Moon: new defs.Subdivision_Sphere(6),
             Windmill: new Windmill(),
             square_2d: new Square_1(),
         };
@@ -71,13 +71,13 @@ export class UCLACraft_Base extends Scene {
                 ambient: 1, diffusivity: 1, specularity: .3,
                 texture: new Texture("assets/BambooWall.png", "LINEAR_MIPMAP_LINEAR"),
             }),
-            plastic: new Material(new Shadow_Textured_Phong_Shader(1), {
+            plastic: new Material(new Shadow_Textured_Phong_Shader(10), {
                 color: color(.5, .5, .5, 1),
                 ambient: .4, diffusivity: .5, specularity: .5,
                 color_texture: new Texture("assets/Grass.png"),
                 light_depth_texture: null
             }),
-            metal: new Material(new Shadow_Textured_Phong_Shader(1), {
+            metal: new Material(new Shadow_Textured_Phong_Shader(10), {
                 color: color(.5, .5, .5, 1),
                 ambient: .4, diffusivity: .5, specularity: .5,
                 color_texture: new Texture("assets/RMarble.png"),
@@ -110,33 +110,33 @@ export class UCLACraft_Base extends Scene {
             down: new Material(texturephong,
                 {
                     texture: new Texture("assets/negy.jpg"),
-                    ambient: 1, diffusivity: 1, specularity: 1, color: Color.of(0, 0, 0, 1)
+                    ambient: 1, diffusivity: 1, specularity: 0, color: Color.of(0, 0, 0, 1)
                 }),
 
             right: new Material(texturephong,
                 {
                     texture: new Texture("assets/posx.jpg"),
-                    ambient: 1, diffusivity: 1, specularity: 1, color: Color.of(0, 0, 0, 1)
+                    ambient: 1, diffusivity: 1, specularity: 0, color: Color.of(0, 0, 0, 1)
                 }),
             back: new Material(texturephong,
                 {
                     texture: new Texture("assets/posz.jpg"),
-                    ambient: 1, diffusivity: 1, specularity: 1, color: Color.of(0, 0, 0, 1)
+                    ambient: 1, diffusivity: 1, specularity: 0, color: Color.of(0, 0, 0, 1)
                 }),
             left: new Material(texturephong,
                 {
                     texture: new Texture("assets/negx.jpg"),
-                    ambient: 1, diffusivity: 1, specularity: 1, color: Color.of(0, 0, 0, 1)
+                    ambient: 1, diffusivity: 1, specularity: 0, color: Color.of(0, 0, 0, 1)
                 }),
             front: new Material(texturephong,
                 {
                     texture: new Texture("assets/negz.jpg"),
-                    ambient: 1, diffusivity: 1, specularity: 1, color: Color.of(0, 0, 0, 1)
+                    ambient: 1, diffusivity: 1, specularity: 0, color: Color.of(0, 0, 0, 1)
                 }),
             up: new Material(texturephong,
                 {
                     texture: new Texture("assets/posy.jpg"),
-                    ambient: 1, diffusivity: 1, specularity: 1, color: Color.of(0, 0, 0, 1)
+                    ambient: 1, diffusivity: 1, specularity: 0, color: Color.of(0, 0, 0, 1)
                 })
         };
 
@@ -168,20 +168,20 @@ export class UCLACraft_Base extends Scene {
 
         ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
         // For the teapot
-        this.materials.stars = new Material(new Shadow_Textured_Phong_Shader(1), {
+        this.materials.stars = new Material(new Shadow_Textured_Phong_Shader(10), {
             color: color(.5, .5, .5, 1),
-            ambient: .4, diffusivity: .5, specularity: .5,
+            ambient: .8, diffusivity: .5, specularity: .5,
             color_texture: new Texture("assets/RMarble.png"),
             light_depth_texture: null
         });
-        this.materials.ice = new Material(new Shadow_Textured_Phong_Shader(1), {
+        this.materials.ice = new Material(new Shadow_Textured_Phong_Shader(10), {
             color: color(.5, .5, .5, 1),
-            ambient: .4, diffusivity: .5, specularity: .5,
+            ambient: .5, diffusivity: .5, specularity: .8,
             color_texture: new Texture("assets/CrackedIce.png"),
             light_depth_texture: null
         });
         // For the floor or other plain objects
-        this.materials.floor = new Material(new Shadow_Textured_Phong_Shader(1), {
+        this.materials.floor = new Material(new Shadow_Textured_Phong_Shader(10), {
             color: color(.5, .5, .5, 1),
             ambient: .4, diffusivity: .5, specularity: .5,
             color_texture: new Texture("assets/GroundMud.png", "LINEAR_MIPMAP_LINEAR"),
@@ -366,27 +366,16 @@ export class UCLACraft_Base extends Scene {
             let position = program_state.lights[i].position
             let radius = (10 - position[1] ** 2) ** 0.5;
             let radius2 = (7 - position[1] ** 2) ** 0.5;
-            this.shapes.Bright.draw(context, program_state, Mat4.translation(position[0], 1.01, position[2]).times(Mat4.scale(radius, 0.01, radius)), this.materials.Bright)
-            this.shapes.Bright.draw(context, program_state, Mat4.translation(position[0], 1.02, position[2]).times(Mat4.scale(radius2, 0.01, radius2)), this.materials.VeryBright)
+            this.shapes.Bright.draw(context, program_state, Mat4.translation(position[0], 2, position[2]).times(Mat4.scale(radius, 0.01, radius)), this.materials.Bright)
+            this.shapes.Bright.draw(context, program_state, Mat4.translation(position[0], 2, position[2]).times(Mat4.scale(radius2, 0.01, radius2)), this.materials.VeryBright)
         }
     }
 
-    addNightEffect(context, program_state, sun_position, light_position) {
-        let plastic = 1, metal = 1;
-        let ice = 0.8
-        if (sun_position < 1) {
-            this.materials.plastic.ambient = plastic / 2;
-            this.materials.metal.ambient = metal / 2;
-            this.materials.ice.ambient = ice / 2;
-            program_state.lights[0] = new Light(light_position, color(0, 0, 0, 1), 10000);
-            this.materials.sun.ambient = 0;
-        } else {
-            this.materials.plastic.ambient = plastic;
-            this.materials.metal.ambient = metal;
-            this.materials.ice.ambient = ice;
-            program_state.lights[0] = new Light(light_position, color(1, 1, 1, 1), 10000);
-            this.materials.sun.ambient = 1;
-        }
+    addNightEffect(context, program_state, sun_position) {
+        let factor = (sun_position/68)/2 //from -0.25 to 0.25
+
+        this.materials.stars.ambient = 0.5+factor
+        this.materials.ice.ambient = 0.35+factor
     }
 
     //update this.cursor
@@ -662,7 +651,7 @@ export class UCLACraft_Base extends Scene {
 
         if (draw_light_source && shadow_pass) {
             this.shapes.Sun.draw(context, program_state,
-                Mat4.translation(Math.cos(t / 20) * 30, Math.sin(t / 20) * 30, 5).times(Mat4.scale(1, 1, 1)),
+                Mat4.translation(Math.cos(t / 20) * 34, Math.sin(t / 20) * 34, 5).times(Mat4.scale(1, 1, 1)),
                 this.light_src.override({ color: light_color }));
         }
 
@@ -679,8 +668,11 @@ export class UCLACraft_Base extends Scene {
 
 
         this.blocks.forEach(item => {
-            let material = shadow_pass ? item.material : this.pure;
-            item.draw(context, program_state, material, item.model_transform)
+            if (item.material !== this.materials.cube_light) {
+                let material = shadow_pass ? item.material : this.pure;
+                item.draw(context, program_state, material, item.model_transform)
+            } else {
+            }
         })
     }
 
@@ -727,9 +719,8 @@ export class UCLACraft_Base extends Scene {
         // *** Lights: *** Values of vector or point lights.  They'll be consulted by
         // the shader when coloring shapes.  See Light's class definition for inputs.
         const t = this.t = program_state.animation_time / 1000;
-        const light_position = vec4(Math.cos(t / 20) * 20, Math.sin(t / 20) * 20, 5, 0);
+        const light_position = vec4(Math.cos(t / 20) * 34, Math.sin(t / 20) * 34, 5, 0);
         program_state.lights = [new Light(light_position, color(1, 1, 1, 1), 10000)];
-        this.shapes.Sun.draw(context, program_state, Mat4.translation(Math.cos(t / 20) * 40, Math.sin(t / 20) * 40, 5).times(Mat4.scale(3, 3, 3)), this.materials.sun)
         const moonlight_position = vec4(Math.cos(t / 20 + Math.PI) * 40, Math.sin(t / 20 + Math.PI) * 40, 5, 0);
         //program_state.lights = [new Light(moonlight_position, color(1, 1, 1, 1), 10000)]; //TODO: check
         this.shapes.Moon.draw(context, program_state, Mat4.translation(Math.cos(t / 20 + Math.PI) * 40, Math.sin(t / 20 + Math.PI) * 40, 5).times(Mat4.scale(3, 3, 3)), this.materials.moon)
@@ -738,11 +729,11 @@ export class UCLACraft_Base extends Scene {
             if (item.material === this.materials.cube_light) {
                 //console.log(item.coord)
                 let light = item.coord
-                program_state.lights.push(new Light(vec4(light[0] * 2, light[1] * 2, light[2] * 2, 0), color(1, 1, 1, 1), 500))
+                program_state.lights.push(new Light(vec4(light[0] * 2, light[1] * 2, light[2] * 2, 0), color(1, 1, 1, 1), 5))
             }
         });
         //add lighting effect to the floor
-        this.placeGroundLighting(context, program_state);
+        //this.placeGroundLighting(context, program_state);
 
         //if (this.blocks.length) 5->0.2 10->0.4 20->0.5 50->0.75 else->0.8
         // let sample_rate = 0.23 * Math.log(this.blocks.length + 2) - 0.16;
@@ -767,11 +758,18 @@ export class UCLACraft_Base extends Scene {
         //     0.667 + Math.sin(t * 1000 / 1500) / 3,
         //     0.667 + Math.sin(t * 1000 / 3500) / 3,
         //     1)
-        this.light_color = color(1, 1, 1, 1);
+        if (light_position[1] < 1) {
+            this.light_color = color(0, 0, 0, 1);
+        } else {
+            this.light_color = color(1, 1, 1, 1);
+        }
+
+        this.addNightEffect(context,program_state,light_position[1])
+
         // This is a rough target of the light.
         // Although the light is point light, we need a target to set the POV of the light
-        this.light_view_target = vec4(0, -10, 0, 1);
-        this.light_field_of_view = 130 * Math.PI / 180.0; // 130 degree
+        this.light_view_target = vec4(0, 0, 0, 1);
+        this.light_field_of_view = 120 * Math.PI / 180.0; // 130 degree
         //program_state.lights = [new Light(this.light_position, this.light_color, 15000)];
 
         // Step 1: set the perspective and camera to the POV of light
@@ -780,7 +778,7 @@ export class UCLACraft_Base extends Scene {
             vec3(this.light_view_target[0], this.light_view_target[1], this.light_view_target[2]),
             vec3(0, 1, 0) // assume the light to target will have a up dir of +y, maybe need to change according to your case
         );
-        const light_proj_mat = Mat4.perspective(this.light_field_of_view, 1, 0.5, 10000);
+        const light_proj_mat = Mat4.perspective(this.light_field_of_view, 1, 5, 10000);
         // Bind the Depth Texture Buffer
         gl.bindFramebuffer(gl.FRAMEBUFFER, this.lightDepthFramebuffer);
         gl.viewport(0, 0, this.lightDepthTextureSize, this.lightDepthTextureSize);
@@ -808,6 +806,15 @@ export class UCLACraft_Base extends Scene {
             this.depth_tex.override({ texture: this.lightDepthTexture })
         );
 
+        this.blocks.forEach(item => {
+            if (item.material === this.materials.cube_light) {
+                item.draw(context, program_state, item.material, item.model_transform)
+                let radius = (6 - item.coord[1] ** 2) ** 0.5;
+                let radius2 = (4 - item.coord[1] ** 2) ** 0.5;
+                this.shapes.Bright.draw(context, program_state, Mat4.translation(item.coord[0] * 2, 1, item.coord[2] * 2).times(Mat4.scale(radius, 0.01, radius)), this.materials.Bright)
+                this.shapes.Bright.draw(context, program_state, Mat4.translation(item.coord[0] * 2, 1.01, item.coord[2] * 2).times(Mat4.scale(radius2, 0.01, radius2)), this.materials.VeryBright)
+            }
+        })
     }
 }
 
@@ -1003,7 +1010,7 @@ class Bright_Shader extends Shader {
         // ********* FRAGMENT SHADER *********
         return this.shared_glsl_code() + `
         void main(){
-            gl_FragColor = vec4( 0.6, 0.68, 0.3, 1);
+            gl_FragColor = vec4( 0.8, 0.76, 0.45, 1);
         }`;
     }
 }
@@ -1042,7 +1049,7 @@ class Very_Bright_Shader extends Shader {
         // ********* FRAGMENT SHADER *********
         return this.shared_glsl_code() + `
         void main(){
-            gl_FragColor = vec4( 0.8, 0.86, 0.36, 1);
+            gl_FragColor = vec4( 0.95, 0.9, 0.65, 1);
         }`;
     }
 }
