@@ -21,11 +21,11 @@ export default class Block {
 
     //draw the block
     //TODO: CHANGE THE FUNCTION TO ACCEPT MATERIAL
-    draw(context, program_state, model_transform = this.model_transform) {
-        this.shape.draw(context, program_state, model_transform, this.material);
+    draw(context, program_state, material, model_transform = this.model_transform) {
+        this.shape.draw(context, program_state, model_transform, material);
     }
 
-    setTexture(material){
+    setTexture(material) {
         this.material = material;
     }
 

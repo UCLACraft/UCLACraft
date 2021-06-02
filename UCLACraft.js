@@ -588,6 +588,10 @@ export class UCLACraft_Base extends Scene {
         //     this.shapes.teapot.draw(context, program_state, model_transform, shadow_pass? this.stars : this.pure);
         // }
 
+        //draw floor
+        let model_transform = Mat4.scale(this.floor.coor_x, 1, this.floor.coor_z);
+        this.shapes.Cube.draw(context, program_state, model_transform, shadow_pass ? this.materials.floor : this.pure);
+
 
         this.blocks.forEach(item => {
             let material = shadow_pass ? item.material : this.pure;
@@ -652,9 +656,9 @@ export class UCLACraft_Base extends Scene {
             1)
         // This is a rough target of the light.
         // Although the light is point light, we need a target to set the POV of the light
-        this.light_view_target = vec4(0, 0, 0, 1);
-        this.light_field_of_view = 30 * Math.PI / 180.0; // 130 degree
-        program_state.lights = [new Light(this.light_position, this.light_color, 5000)];
+        this.light_view_target = vec4(0, -10, 0, 1);
+        this.light_field_of_view = 130 * Math.PI / 180.0; // 130 degree
+        program_state.lights = [new Light(this.light_position, this.light_color, 15000)];
 
         // Step 1: set the perspective and camera to the POV of light
         const light_view_mat = Mat4.look_at(
@@ -734,7 +738,7 @@ export class UCLACraft extends UCLACraft_Base {
         // this.shapes.Cube.draw(context, program_state, model_transform, this.materials.plastic.override(blue));
         // this.drawfloor(context, program_state);
 
-        this.drawfloor(context, program_state);
+        //this.drawfloor(context, program_state);
 
         this.getPointing_at(program_state); //fill in this.selected this.outlines
 
