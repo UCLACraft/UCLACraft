@@ -97,12 +97,6 @@ class MousePicking extends Scene {
     show_explanation(document_element) {
     }
 
-    make_control_panel() {
-        // make_control_panel(): Sets up a panel of interactive HTML elements, including
-        // buttons with key bindings for affecting this scene, and live info readouts.
-        this.control_panel.innerHTML += "The Mouse Picking Module";
-        this.new_line();
-    }
 
 
 

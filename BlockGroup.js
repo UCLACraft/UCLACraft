@@ -45,7 +45,7 @@ export default class BlockGroup {
             if (element.coord[2] > maxz) {
                 maxz = element.coord[2];
             }
-            if (element.coord[2] < miny) {
+            if (element.coord[1] < miny) {
                 miny = element.coord[1];
             }
         });
@@ -56,7 +56,7 @@ export default class BlockGroup {
         let z_center = Math.round((minz + maxz) / 2);
         let y_center = miny;
         // console.log([minx, miny, minz, maxx, maxz])
-        // console.log(vec3(x_center, y_center, z_center));
+        //console.log(vec3(x_center, y_center, z_center));
         return vec3(x_center, y_center, z_center);
     }
 
