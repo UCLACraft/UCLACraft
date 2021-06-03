@@ -65,8 +65,10 @@ export class UCLACraft_Base extends Scene {
         this.materials = {
             grass: new Material(shadow_shader,
                 {
+                    color: color(.5, .5, .5, 1),
                     ambient: 1, diffusivity: .8, specularity: .3,
-                    texture: new Texture("assets/Grass.jpg")
+                    color_texture: new Texture("assets/Grass.jpg"),
+                    light_depth_texture: null
                 }),
             bamboo_wall: new Material(new defs.Fake_Bump_Map, {
                 ambient: 1, diffusivity: 1, specularity: .3,
@@ -372,8 +374,12 @@ export class UCLACraft_Base extends Scene {
     addNightEffect(context, program_state, sun_position) {
         let factor = (sun_position / 68) / 2 //from -0.25 to 0.25
 
+        // Object.values(this.materials).forEach(material => {
+        //     material.ambient = 0.5 + factor
+        // })
         this.materials.stars.ambient = 0.5 + factor
-        this.materials.ice.ambient = 0.35 + factor
+        this.materials.ice.ambient = 0.5 + factor
+        this.materials.grass.ambient = 0.5 + factor
     }
 
     //update this.cursor
@@ -550,7 +556,6 @@ export class UCLACraft_Base extends Scene {
         //     this.swarm ^= 1;
         // });
         super.make_control_panel();
-        this.key_triggered_button("Change All to Marble/Grass", ["Control", "c"], () => this.flipMaterial());
         this.new_line()
         this.key_triggered_button("Change Texture to Ice", ["Control", "i"], () => this.toIce());
         this.key_triggered_button("Change Texture to Marble", ["Control", "m"], () => this.toMetal());
