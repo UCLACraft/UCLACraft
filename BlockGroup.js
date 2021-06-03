@@ -53,7 +53,7 @@ export default class BlockGroup {
 
     //get relaive coordinates w.r.t the anchor
     ComputeRelativeCoord() {
-        res = []
+        let res = []
         this.blocks.forEach(element => {
             res.push(element.coord.minus(this.anchor_coord));
         })
@@ -62,9 +62,23 @@ export default class BlockGroup {
 
     //return the outline position array
     getOutlines(cursor_pos) { //cursor_pos: vec3: position of the cursor
-        res = [];
+        if (cursor_pos === null || cursor_pos === undefined) {
+            return [];
+        }
+        let res = [];
         this.relativeCoord.forEach(element => {
             res.push(vec3(element[0] * BLOCK_SIZE, element[1] * BLOCK_SIZE, element[2] * BLOCK_SIZE).plus(cursor_pos));
+        })
+        return res;
+    }
+
+    //returns an array of block objects to be added
+    getMultiBlocks(cursor_coord) {
+        let res = []
+        this.blocks.forEach((item, i) => {
+            item.setCoord(this.relativeCoord[i][0] + cursor_coord[0], this.relativeCoord[i][1] + cursor_coord[1], this.relativeCoord[i][2] + cursor_coord[2]);
+            item.model_transform = Mat4.translation(this.position[0], this.position[1], this.position[2]);
+            res.push(item);
         })
         return res;
     }
