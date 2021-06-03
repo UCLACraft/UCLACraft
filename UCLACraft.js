@@ -60,32 +60,37 @@ export class UCLACraft_Base extends Scene {
 
         const phong = new defs.Phong_Shader();
         const texturephong = new defs.Textured_Phong();
+        const shadow_shader = new Shadow_Textured_Phong_Shader(10)
 
         this.materials = {
-            grass: new Material(texturephong,
+            grass: new Material(shadow_shader,
                 {
+                    color: color(.5, .5, .5, 1),
                     ambient: 1, diffusivity: .8, specularity: .3,
-                    texture: new Texture("assets/Grass.jpg", "LINEAR_MIPMAP_LINEAR")
+                    color_texture: new Texture("assets/Grass.jpg"),
+                    light_depth_texture: null
                 }),
             bamboo_wall: new Material(new defs.Fake_Bump_Map, {
                 ambient: 1, diffusivity: 1, specularity: .3,
                 texture: new Texture("assets/BambooWall.png", "LINEAR_MIPMAP_LINEAR"),
             }),
-            plastic: new Material(new Shadow_Textured_Phong_Shader(10), {
+            plastic: new Material(texturephong, {
                 color: color(.5, .5, .5, 1),
                 ambient: .4, diffusivity: .5, specularity: .5,
-                color_texture: new Texture("assets/Grass.png"),
+                color_texture: new Texture("assets/Grass.jpg"),
                 light_depth_texture: null
             }),
-            metal: new Material(new Shadow_Textured_Phong_Shader(10), {
+            metal: new Material(shadow_shader, {
                 color: color(.5, .5, .5, 1),
                 ambient: .4, diffusivity: .5, specularity: .5,
                 color_texture: new Texture("assets/RMarble.png"),
                 light_depth_texture: null
             }), //TODO: CHANGE REMAINING
-            ice: new Material(texturephong, {
-                ambient: 1, diffusivity: .5, specularity: .5,
-                texture: new Texture("assets/RMarble.png", "LINEAR_MIPMAP_LINEAR"),
+            ice: new Material(shadow_shader, {
+                color: color(.5, .5, .5, 1),
+                ambient: .7, diffusivity: .5, specularity: .5,
+                color_texture: new Texture("assets/CrackedIce.png"),
+                light_depth_texture: null
             }),
             //             sun: new Material(new defs.Phong_Shader(),
             //                 {ambient: 1, diffusivity: 0, specularity: 0, color: hex_color("#f35a38")}),
@@ -167,21 +172,16 @@ export class UCLACraft_Base extends Scene {
 
 
         ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-        // For the teapot
-        this.materials.stars = new Material(new Shadow_Textured_Phong_Shader(10), {
+
+        this.materials.stars = new Material(shadow_shader, {
             color: color(.5, .5, .5, 1),
             ambient: .8, diffusivity: .5, specularity: .5,
             color_texture: new Texture("assets/RMarble.png"),
             light_depth_texture: null
         });
-        this.materials.ice = new Material(new Shadow_Textured_Phong_Shader(10), {
-            color: color(.5, .5, .5, 1),
-            ambient: .5, diffusivity: .5, specularity: .8,
-            color_texture: new Texture("assets/CrackedIce.png"),
-            light_depth_texture: null
-        });
+
         // For the floor or other plain objects
-        this.materials.floor = new Material(new Shadow_Textured_Phong_Shader(10), {
+        this.materials.floor = new Material(shadow_shader, {
             color: color(.5, .5, .5, 1),
             ambient: .4, diffusivity: .5, specularity: .5,
             color_texture: new Texture("assets/GroundMud.png", "LINEAR_MIPMAP_LINEAR"),
@@ -372,10 +372,14 @@ export class UCLACraft_Base extends Scene {
     }
 
     addNightEffect(context, program_state, sun_position) {
-        let factor = (sun_position/68)/2 //from -0.25 to 0.25
+        let factor = (sun_position / 68) / 2 //from -0.25 to 0.25
 
-        this.materials.stars.ambient = 0.5+factor
-        this.materials.ice.ambient = 0.35+factor
+        // Object.values(this.materials).forEach(material => {
+        //     material.ambient = 0.5 + factor
+        // })
+        this.materials.stars.ambient = 0.5 + factor
+        this.materials.ice.ambient = 0.5 + factor
+        this.materials.grass.ambient = 0.5 + factor
     }
 
     //update this.cursor
@@ -500,7 +504,7 @@ export class UCLACraft_Base extends Scene {
         this.currentMaterial = this.materials.ice;
         if (this.state === MODIFYING) {
             this.selected.forEach((item, i) => {
-                item.material = this.ice;
+                item.material = this.materials.ice;
             })
             this.selected = [];
         }
@@ -509,17 +513,17 @@ export class UCLACraft_Base extends Scene {
         this.currentMaterial = this.materials.stars;
         if (this.state === MODIFYING) {
             this.selected.forEach((item, i) => {
-                item.material = this.stars;
+                item.material = this.materials.stars;
 
             })
             this.selected = [];
         }
     }
     toGround() {
-        this.currentMaterial = this.materials.plastic;
+        this.currentMaterial = this.materials.grass;
         if (this.state === MODIFYING) {
             this.selected.forEach((item, i) => {
-                item.material = this.materials.plastic;
+                item.material = this.materials.grass;
             })
             this.selected = [];
         }
@@ -552,7 +556,6 @@ export class UCLACraft_Base extends Scene {
         //     this.swarm ^= 1;
         // });
         super.make_control_panel();
-        this.key_triggered_button("Change All to Marble/Grass", ["Control", "c"], () => this.flipMaterial());
         this.new_line()
         this.key_triggered_button("Change Texture to Ice", ["Control", "i"], () => this.toIce());
         this.key_triggered_button("Change Texture to Marble", ["Control", "m"], () => this.toMetal());
@@ -764,7 +767,7 @@ export class UCLACraft_Base extends Scene {
             this.light_color = color(1, 1, 1, 1);
         }
 
-        this.addNightEffect(context,program_state,light_position[1])
+        this.addNightEffect(context, program_state, light_position[1])
 
         // This is a rough target of the light.
         // Although the light is point light, we need a target to set the POV of the light
@@ -798,13 +801,13 @@ export class UCLACraft_Base extends Scene {
         program_state.projection_transform = Mat4.perspective(Math.PI / 4, context.width / context.height, 0.5, 10000);
         this.render_scene(context, program_state, true, true, true);
 
-        // Step 3: display the textures
-        this.shapes.square_2d.draw(context, program_state,
-            Mat4.translation(-.99, .08, 0).times(
-                Mat4.scale(0.5, 0.5 * gl.canvas.width / gl.canvas.height, 1)
-            ),
-            this.depth_tex.override({ texture: this.lightDepthTexture })
-        );
+        // // Step 3: display the textures
+        // this.shapes.square_2d.draw(context, program_state,
+        //     Mat4.translation(-.99, .08, 0).times(
+        //         Mat4.scale(0.5, 0.5 * gl.canvas.width / gl.canvas.height, 1)
+        //     ),
+        //     this.depth_tex.override({ texture: this.lightDepthTexture })
+        // );
 
         this.blocks.forEach(item => {
             if (item.material === this.materials.cube_light) {
