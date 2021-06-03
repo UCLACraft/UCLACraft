@@ -16,9 +16,11 @@ import {
     Color_Phong_Shader, Shadow_Textured_Phong_Shader,
     Depth_Texture_Shader_2D, Buffered_Texture, LIGHT_DEPTH_TEX_SIZE
 } from './shadow-demo-shaders.js'
+import BlockGroup from './BlockGroup.js';
 
 const PLACING = 0;
 const MODIFYING = 1;
+const MULTICOPY = 2;
 
 const Square_1 =
     class Square extends tiny.Vertex_Buffer {
@@ -153,6 +155,7 @@ export class UCLACraft_Base extends Scene {
 
         this.selected = []; //the selected blocks TODO
         this.outlines = []; //outlines: an array indicating outlines positions
+        this.selected_BlockGroup = undefined;
 
 
         this.state = PLACING; //can be one of two states: PLACING/MODIFYING
@@ -211,7 +214,7 @@ export class UCLACraft_Base extends Scene {
                     this.createBlock(position_to_coord(outline_pos));
                 })
                 this.outlines = [];
-            } else { //MODIFYING
+            } else if (this.state === MODIFYING) { //MODIFYING
                 //if clicked, add the block to this.selected if it's in there; remove it from this.selected if it's not in there
                 if (this.cursor === undefined) {
                     return;
@@ -228,6 +231,11 @@ export class UCLACraft_Base extends Scene {
                         this.selected.push(this.cursor);
                     }
                 }
+            } else { //if this.state===MULTICOPY
+                let toDrawBlocks = this.selected_BlockGroup.getMultiBlocks(this.pointed_coord);
+                toDrawBlocks.forEach(newBlock => {
+                    this.createBlock(newBlock.coord, newBlock.shape, newBlock.material);
+                })
             }
         });
     }
@@ -416,7 +424,7 @@ export class UCLACraft_Base extends Scene {
         // }
 
         /*get this.outlines*/
-        if (this.state === PLACING) {
+        if (this.state === PLACING || this.state === MULTICOPY) {
             let new_outlines = []
             if (min_block !== undefined || this.intersectFloor(program_state)) {
                 const candidates = (min_block !== undefined) ? this.getOutlineCandidates(min_block) : this.getOutlineCandidates(this.dummyBlock, true);
@@ -432,13 +440,35 @@ export class UCLACraft_Base extends Scene {
                         }
                     }
                 })
+                this.pointed_coord = undefined;
                 if (outline_pos !== undefined) {
-                    new_outlines.push(outline_pos);
-                    this.outlines = new_outlines;
+                    this.pointed_coord = position_to_coord(outline_pos);
+                }
+                if (this.state === PLACING) {
+                    if (outline_pos !== undefined) {
+                        new_outlines.push(outline_pos);
+                        this.outlines = new_outlines;
+                    }
+                } else if (this.state === MULTICOPY) {
+
+                    if (outline_pos !== undefined) {
+                        new_outlines = this.selected_BlockGroup.getOutlines(outline_pos);
+                        this.outlines = new_outlines;
+                    }
+
                 }
             }
         }
+        // else if (this.state === MULTICOPY) {
+        //     if (this.cursor === undefined) {
+        //         this.outlines = [];
+        //     } else {
+        //         this.outlines = this.selected_BlockGroup.getOutlines(this.cursor.position);
+        //     }
+        // }
     }
+
+
     drawOutline(context, program_state) {
         //draw outline
         this.outlines.forEach(outline => {
@@ -570,6 +600,16 @@ export class UCLACraft_Base extends Scene {
             }
         });
         this.key_triggered_button("Delete", ["Backspace"], () => { if (this.state === MODIFYING) this.deleteSelected(); });
+        this.key_triggered_button("Copy Selected Blocks/Cancel", ["Control", "c"], () => {
+            if (this.state === MODIFYING) {
+                this.state = MULTICOPY;
+                this.selected_BlockGroup = new BlockGroup(this.selected);
+                this.outlines = [];
+            } else if (this.state === MULTICOPY) {
+                this.state = MODIFYING;
+                this.outlines = [];
+            }
+        })
     }
 
     texture_buffer_init(gl) {

@@ -10,7 +10,7 @@ import { coord_to_position, position_to_coord } from './helpers.js'
 import { BLOCK_SIZE, FLOOR_DIM } from './Constants.js'
 
 export default class Block {
-    constructor(shape, coord, material, block_id) {
+    constructor(shape, coord, material, block_id = 0) {
         this.shape = shape;
         this.coord = coord; //vec3 indicating coord
         this.position = coord_to_position(this.coord); //vec3: position

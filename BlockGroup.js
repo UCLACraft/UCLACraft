@@ -9,6 +9,7 @@ import { coord_to_position, position_to_coord } from './helpers.js'
 
 
 import { BLOCK_SIZE, FLOOR_DIM } from './Constants.js'
+import Block from './Block.js';
 
 /*A data structure for multiple blocks processing*/
 
@@ -25,10 +26,13 @@ export default class BlockGroup {
         if (this.blocks.length === 0) {
             return null;
         }
-        let minx, minz = Infinity;
-        let maxx, maxz = -Infinity;
+        let minx = Infinity;
+        let minz = Infinity;
+        let maxx = -Infinity;
+        let maxz = -Infinity;
         let miny = Infinity;
         this.blocks.forEach(element => {
+            // console.log(element.coord);
             if (element.coord[0] < minx) {
                 minx = element.coord[0];
             }
@@ -45,9 +49,11 @@ export default class BlockGroup {
                 miny = element.coord[1];
             }
         });
-        x_center = Math.round((minx + maxx) / 2);
-        z_center = Math.round((minz + maxz) / 2);
-        y_center = miny;
+        let x_center = Math.round((minx + maxx) / 2);
+        let z_center = Math.round((minz + maxz) / 2);
+        let y_center = miny;
+        // console.log([minx, miny, minz, maxx, maxz])
+        // console.log(vec3(x_center, y_center, z_center));
         return vec3(x_center, y_center, z_center);
     }
 
@@ -74,11 +80,14 @@ export default class BlockGroup {
 
     //returns an array of block objects to be added
     getMultiBlocks(cursor_coord) {
+        if (cursor_coord === null || cursor_coord === undefined) {
+            return [];
+        }
         let res = []
         this.blocks.forEach((item, i) => {
-            item.setCoord(this.relativeCoord[i][0] + cursor_coord[0], this.relativeCoord[i][1] + cursor_coord[1], this.relativeCoord[i][2] + cursor_coord[2]);
-            item.model_transform = Mat4.translation(this.position[0], this.position[1], this.position[2]);
-            res.push(item);
+            let new_coord = vec3(this.relativeCoord[i][0] + cursor_coord[0], this.relativeCoord[i][1] + cursor_coord[1], this.relativeCoord[i][2] + cursor_coord[2]);
+            let new_item = new Block(item.shape, new_coord, item.material)
+            res.push(new_item);
         })
         return res;
     }
