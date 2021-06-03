@@ -603,7 +603,7 @@ export class UCLACraft_Base extends Scene {
         });
         this.key_triggered_button("Delete", ["Backspace"], () => { if (this.state === MODIFYING) this.deleteSelected(); });
         this.key_triggered_button("Copy Selected Blocks/Cancel", ["Control", "c"], () => {
-            if (this.state === MODIFYING) {
+            if (this.state === MODIFYING && this.selected.length >= 1) {
                 this.state = MULTICOPY;
                 this.selected_BlockGroup = new BlockGroup(this.selected);
                 this.outlines = [];
@@ -612,6 +612,18 @@ export class UCLACraft_Base extends Scene {
                 this.outlines = [];
             }
         })
+        this.new_line()
+        this.live_string(box => {
+            let state_str;
+            if (this.state === PLACING) {
+                state_str = "PLACING";
+            } else if (this.state === MODIFYING) {
+                state_str = "MODIFYING"
+            } else {
+                state_str = "COPYING"
+            }
+            box.textContent = "Current State: " + state_str;
+        });
     }
 
     texture_buffer_init(gl) {
