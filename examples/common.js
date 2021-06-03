@@ -981,23 +981,23 @@ const Movement_Controls = defs.Movement_Controls =
             this.inverse().pre_multiply(Mat4.translation(...this.thrust.times(+meters_per_frame)));
         }
 
-        third_person_arcball(radians_per_frame) {
-            // (Internal helper function)
-            // Spin the scene around a point on an axis determined by user mouse drag:
-            const dragging_vector = this.mouse.from_center.minus(this.mouse.anchor);
-            if (dragging_vector.norm() <= 0)
-                return;
-            this.matrix().post_multiply(Mat4.translation(0, 0, -25));
-            this.inverse().pre_multiply(Mat4.translation(0, 0, +25));
+        // third_person_arcball(radians_per_frame) {
+        //     // (Internal helper function)
+        //     // Spin the scene around a point on an axis determined by user mouse drag:
+        //     const dragging_vector = this.mouse.from_center.minus(this.mouse.anchor);
+        //     if (dragging_vector.norm() <= 0)
+        //         return;
+        //     this.matrix().post_multiply(Mat4.translation(0, 0, -25));
+        //     this.inverse().pre_multiply(Mat4.translation(0, 0, +25));
 
-            const rotation = Mat4.rotation(radians_per_frame * dragging_vector.norm(),
-                dragging_vector[1], dragging_vector[0], 0);
-            this.matrix().post_multiply(rotation);
-            this.inverse().pre_multiply(rotation);
+        //     const rotation = Mat4.rotation(radians_per_frame * dragging_vector.norm(),
+        //         dragging_vector[1], dragging_vector[0], 0);
+        //     this.matrix().post_multiply(rotation);
+        //     this.inverse().pre_multiply(rotation);
 
-            this.matrix().post_multiply(Mat4.translation(0, 0, +25));
-            this.inverse().pre_multiply(Mat4.translation(0, 0, -25));
-        }
+        //     this.matrix().post_multiply(Mat4.translation(0, 0, +25));
+        //     this.inverse().pre_multiply(Mat4.translation(0, 0, -25));
+        // }
 
         display(context, graphics_state, dt = graphics_state.animation_delta_time / 1000) {
             // The whole process of acting upon controls begins here.
@@ -1016,8 +1016,8 @@ const Movement_Controls = defs.Movement_Controls =
             // Move in first-person.  Scale the normal camera aiming speed by dt for smoothness:
             this.first_person_flyaround(dt * r, dt * m);
             // Also apply third-person "arcball" camera mode if a mouse drag is occurring:
-            if (this.mouse.anchor)
-                this.third_person_arcball(dt * r);
+            // if (this.mouse.anchor)
+            //     this.third_person_arcball(dt * r);
             // Log some values:
             this.pos = this.inverse().times(vec4(0, 0, 0, 1));
             this.z_axis = this.inverse().times(vec4(0, 0, 1, 0));
