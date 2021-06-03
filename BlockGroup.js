@@ -49,6 +49,9 @@ export default class BlockGroup {
                 miny = element.coord[1];
             }
         });
+        if (miny < 0) { //safety
+            miny = 0;
+        }
         let x_center = Math.round((minx + maxx) / 2);
         let z_center = Math.round((minz + maxz) / 2);
         let y_center = miny;
@@ -73,7 +76,12 @@ export default class BlockGroup {
         }
         let res = [];
         this.relativeCoord.forEach(element => {
-            res.push(vec3(element[0] * BLOCK_SIZE, element[1] * BLOCK_SIZE, element[2] * BLOCK_SIZE).plus(cursor_pos));
+            let vector = vec3(element[0] * BLOCK_SIZE, element[1] * BLOCK_SIZE, element[2] * BLOCK_SIZE).plus(cursor_pos)
+
+            if (!(vector[0] < -FLOOR_DIM || vector[0] > FLOOR_DIM || vector[2] < -FLOOR_DIM || vector[2] > FLOOR_DIM)) { //check range
+                res.push(vec3(element[0] * BLOCK_SIZE, element[1] * BLOCK_SIZE, element[2] * BLOCK_SIZE).plus(cursor_pos));
+            }
+
         })
         return res;
     }
@@ -86,8 +94,10 @@ export default class BlockGroup {
         let res = []
         this.blocks.forEach((item, i) => {
             let new_coord = vec3(this.relativeCoord[i][0] + cursor_coord[0], this.relativeCoord[i][1] + cursor_coord[1], this.relativeCoord[i][2] + cursor_coord[2]);
-            let new_item = new Block(item.shape, new_coord, item.material)
-            res.push(new_item);
+            if (!(new_coord[0] < -FLOOR_DIM || new_coord[0] > FLOOR_DIM || new_coord[2] < -FLOOR_DIM || new_coord[2] > FLOOR_DIM)) { //check range
+                let new_item = new Block(item.shape, new_coord, item.material);
+                res.push(new_item);
+            }
         })
         return res;
     }

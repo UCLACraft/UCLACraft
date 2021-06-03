@@ -593,6 +593,8 @@ export class UCLACraft_Base extends Scene {
         this.key_triggered_button("Change Texture to Light", ["Control", "l"], () => this.toLight());
         this.key_triggered_button("Switch State", ["Enter"], () => {
             if (this.state === MODIFYING) {
+                this.outlines = [];
+                this.selected = [];
                 this.state = PLACING;
             } else {
                 this.state = MODIFYING;
