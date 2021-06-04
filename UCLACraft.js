@@ -63,8 +63,7 @@ export class UCLACraft_Base extends Scene {
         const phong = new defs.Phong_Shader();
         const texturephong = new defs.Textured_Phong();
         const shadow_shader = new Shadow_Textured_Phong_Shader(10)
-        let DayNightBool = true;
-
+        const bump_shader = new defs.Fake_Bump_Map
 
         this.materials = {
             grass: new Material(shadow_shader,
@@ -148,12 +147,83 @@ export class UCLACraft_Base extends Scene {
                     ambient: 1, diffusivity: 1, specularity: 0, color: Color.of(0, 0, 0, 1)
                 })
         };
+        this.bumped_materials = {
+            grass: new Material(bump_shader,
+                {
+                    ambient: 1, diffusivity: .8, specularity: .3,
+                    texture: new Texture("assets/Grass.jpg"),
+
+                }),
+            plastic: new Material(bump_shader, {
+                ambient: .4, diffusivity: .5, specularity: .5,
+                texture: new Texture("assets/Grass.jpg"),
+            }),
+            metal: new Material(bump_shader, {
+                ambient: .4, diffusivity: .5, specularity: .5,
+                texture: new Texture("assets/RMarble.png"),
+            }),
+            ice: new Material(bump_shader, {
+                ambient: .4, diffusivity: .5, specularity: .5,
+                texture: new Texture("assets/CrackedIce.png"),
+            }),
+            //             sun: new Material(new defs.Phong_Shader(),
+            //                 {ambient: 1, diffusivity: 0, specularity: 0, color: hex_color("#f35a38")}),
+            sun: new Material(texturephong,
+                {
+                    ambient: 1, diffusivity: 0.5, specularity: .5,
+                    texture: new Texture('assets/sun.gif', 'LINEAR_MIPMAP_LINEAR')
+                }),
+
+            moon: new Material(new defs.Phong_Shader(),
+                { ambient: 1, diffusivity: 0, specularity: 0, color: hex_color("#dceff5") }),
+            cube_light: new Material(new defs.Phong_Shader(),
+                { ambient: 1, diffusivity: 0, specularity: 0, color: hex_color("#fde79a") }),
+            selected: new Material(phong, {
+                ambient: .8, diffusivity: 0.1, specularity: 0,
+                color: color(1, 1, 1, 0.2),
+            }),
+            outline: new Material(new defs.Basic_Shader()),
+            shadow: new Material(new Shadow_Shader()),
+            Bright: new Material(new Bright_Shader()),
+            VeryBright: new Material(new Very_Bright_Shader()),
+            down: new Material(texturephong,
+                {
+                    texture: new Texture("assets/negy.jpg"),
+                    ambient: 1, diffusivity: 1, specularity: 0, color: Color.of(0, 0, 0, 1)
+                }),
+
+            right: new Material(texturephong,
+                {
+                    texture: new Texture("assets/posx.jpg"),
+                    ambient: 1, diffusivity: 1, specularity: 0, color: Color.of(0, 0, 0, 1)
+                }),
+            back: new Material(texturephong,
+                {
+                    texture: new Texture("assets/posz.jpg"),
+                    ambient: 1, diffusivity: 1, specularity: 0, color: Color.of(0, 0, 0, 1)
+                }),
+            left: new Material(texturephong,
+                {
+                    texture: new Texture("assets/negx.jpg"),
+                    ambient: 1, diffusivity: 1, specularity: 0, color: Color.of(0, 0, 0, 1)
+                }),
+            front: new Material(texturephong,
+                {
+                    texture: new Texture("assets/negz.jpg"),
+                    ambient: 1, diffusivity: 1, specularity: 0, color: Color.of(0, 0, 0, 1)
+                }),
+            up: new Material(texturephong,
+                {
+                    texture: new Texture("assets/posy.jpg"),
+                    ambient: 1, diffusivity: 1, specularity: 0, color: Color.of(0, 0, 0, 1)
+                })
+        };
 
         this.MouseMonitor = new MousePicking(); //available: this.MouseMonitor.ray
         this.occupied_coords = [] //list of vec3 that record coordinates of blocks(both real and pseudo)
         this.blocks = []//list of Blocks
 
-        this.cursor = undefined; //the block that the mouse is pointing at 
+        this.cursor = undefined; //the block that the mouse is pointing at
 
         this.selected = []; //the selected blocks TODO
         this.outlines = []; //outlines: an array indicating outlines positions
@@ -161,6 +231,25 @@ export class UCLACraft_Base extends Scene {
 
 
         this.state = PLACING; //can be one of two states: PLACING/MODIFYING
+        this.night = false;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
         this.mouse_control_added = false;
 
@@ -171,8 +260,7 @@ export class UCLACraft_Base extends Scene {
         // this.createBlock(vec3(1, 1, 1));
         // this.createBlock(vec3(1, 2, 1));
         // this.createBlock(vec3(1, 2, 2));
-        this.parity = false;
-        this.flipMaterial();
+
         this.currentMaterial = this.materials.metal;
 
 
@@ -208,11 +296,6 @@ export class UCLACraft_Base extends Scene {
         // To make sure texture initialization only does once
         this.init_ok = false;
     }
-
-    day_night_bool(){
-
-    }
-
     add_mouse_controls(canvas) {
         canvas.addEventListener("click", () => {
             if (this.state === PLACING) {
@@ -286,14 +369,14 @@ export class UCLACraft_Base extends Scene {
         this.dummyBlock.setCoord(x_coord, 0, z_coord);
         return true;
     }
-    //returns an array of block positions around the input block 
+    //returns an array of block positions around the input block
     getOutlineCandidates(block, floor = false) {
         let coordinate = block.coord;
         let res;
         if (!floor) {
             res = [vec3(coordinate[0] + 1, coordinate[1], coordinate[2]), vec3(coordinate[0] - 1, coordinate[1], coordinate[2]),
-            vec3(coordinate[0], coordinate[1] + 1, coordinate[2]), vec3(coordinate[0], coordinate[1] - 1, coordinate[2]),
-            vec3(coordinate[0], coordinate[1], coordinate[2] + 1), vec3(coordinate[0], coordinate[1], coordinate[2] - 1)];
+                vec3(coordinate[0], coordinate[1] + 1, coordinate[2]), vec3(coordinate[0], coordinate[1] - 1, coordinate[2]),
+                vec3(coordinate[0], coordinate[1], coordinate[2] + 1), vec3(coordinate[0], coordinate[1], coordinate[2] - 1)];
         } else {
             res = [vec3(coordinate[0], coordinate[1] + 1, coordinate[2])];
         }
@@ -334,7 +417,7 @@ export class UCLACraft_Base extends Scene {
                     }
                     if (appear) {
                         this.shapes.Shadow.draw(context, program_state, Mat4.identity().
-                            times(Mat4.translation(x - sample_rate / 4, 1, z - sample_rate / 4)).times(Mat4.scale(sample_rate / 2, 0.01, sample_rate / 2)), this.materials.shadow);
+                        times(Mat4.translation(x - sample_rate / 4, 1, z - sample_rate / 4)).times(Mat4.scale(sample_rate / 2, 0.01, sample_rate / 2)), this.materials.shadow);
                     }
                 }
             }
@@ -367,7 +450,7 @@ export class UCLACraft_Base extends Scene {
                     }
                     if (appear) {
                         this.shapes.Shadow.draw(context, program_state, Mat4.identity().
-                            times(Mat4.translation(x - sample_rate / 4, 1, z - sample_rate / 4)).times(Mat4.scale(sample_rate / 2, 0.01, sample_rate / 2)), this.materials.shadow);
+                        times(Mat4.translation(x - sample_rate / 4, 1, z - sample_rate / 4)).times(Mat4.scale(sample_rate / 2, 0.01, sample_rate / 2)), this.materials.shadow);
                     }
                 }
             }
@@ -524,20 +607,42 @@ export class UCLACraft_Base extends Scene {
             this.selected = [];
         }
     }
-    flipMaterial() {
-        if (this.parity) {
-            this.blocks.forEach(block => {
-                block.setTexture(this.materials.plastic)
-            })
-        } else {
-            this.blocks.forEach(block => {
-                block.setTexture(this.materials.metal)
-            })
+
+    decidecounterpart(mym){  //Given a material, return its night counterpart if the material has one
+        let rightm = mym
+        if(this.night) {
+            if(mym === this.materials.ice){rightm = this.bumped_materials.ice}
+            else if (mym === this.materials.metal){rightm = this.bumped_materials.metal}
+            else if (mym === this.materials.plastic){rightm = this.bumped_materials.plastic}
+            else if (mym === this.materials.grass){rightm = this.bumped_materials.grass}
+            else{}
+
         }
-        this.parity = !this.parity
+        else {
+            if(mym === this.bumped_materials.ice){rightm = this.materials.ice}
+            else if (mym === this.bumped_materials.metal){rightm = this.materials.metal}
+            else if (mym === this.bumped_materials.plastic){rightm = this.materials.plastic}
+            else if (mym === this.bumped_materials.grass){rightm = this.materials.grass}
+            else{}
+        }
+        return rightm;
+    }
+    flipMaterial() {
+        this.blocks.forEach(block => {
+            block.setTexture(this.decidecounterpart(block.material))
+        })
+        this.currentMaterial = this.decidecounterpart(this.currentMaterial)
+
     }
     toIce() {
-        this.currentMaterial = this.materials.ice;
+        let icematerial
+        if(this.night) {
+            icematerial = this.bumped_materials.ice
+        }
+        else {
+            icematerial = this.materials.ice
+        }
+        this.currentMaterial = icematerial
         if (this.state === MODIFYING) {
             this.selected.forEach((item, i) => {
                 item.material = this.materials.ice;
@@ -546,7 +651,14 @@ export class UCLACraft_Base extends Scene {
         }
     }
     toMetal() {
-        this.currentMaterial = this.materials.stars;
+        let metalmaterial
+        if(this.night) {
+            metalmaterial = this.bumped_materials.metal
+        }
+        else {
+            metalmaterial = this.materials.metal
+        }
+        this.currentMaterial = metalmaterial
         if (this.state === MODIFYING) {
             this.selected.forEach((item, i) => {
                 item.material = this.materials.stars;
@@ -556,7 +668,14 @@ export class UCLACraft_Base extends Scene {
         }
     }
     toGround() {
-        this.currentMaterial = this.materials.grass;
+        let grassmaterial
+        if(this.night) {
+            grassmaterial = this.bumped_materials.grass
+        }
+        else {
+            grassmaterial = this.materials.grass
+        }
+        this.currentMaterial = grassmaterial
         if (this.state === MODIFYING) {
             this.selected.forEach((item, i) => {
                 item.material = this.materials.grass;
@@ -630,6 +749,7 @@ export class UCLACraft_Base extends Scene {
             }
             box.textContent = "Current State: " + state_str;
         });
+
     }
 
     texture_buffer_init(gl) {
@@ -717,7 +837,6 @@ export class UCLACraft_Base extends Scene {
                 Mat4.translation(Math.cos(t / 20) * 34, Math.sin(t / 20) * 34, 5).times(Mat4.scale(1, 1, 1)),
                 this.light_src.override({ color: light_color }));
         }
-        this.shapes.Moon.draw(context, program_state, Mat4.translation(Math.cos(t / 20 + Math.PI) * 40, Math.sin(t / 20 + Math.PI) * 40, 5).times(Mat4.scale(3, 3, 3)), this.materials.moon)
 
         // for (let i of [-1, 1]) { // Spin the 3D model shapes as well.
         //     const model_transform = Mat4.translation(2 * i, 3, 0)
@@ -787,7 +906,7 @@ export class UCLACraft_Base extends Scene {
         program_state.lights = [new Light(light_position, color(1, 1, 1, 1), 10000)];
         const moonlight_position = vec4(Math.cos(t / 20 + Math.PI) * 40, Math.sin(t / 20 + Math.PI) * 40, 5, 0);
         //program_state.lights = [new Light(moonlight_position, color(1, 1, 1, 1), 10000)]; //TODO: check
-        //this.shapes.Moon.draw(context, program_state, Mat4.translation(Math.cos(t / 20 + Math.PI) * 40, Math.sin(t / 20 + Math.PI) * 40, 5).times(Mat4.scale(3, 3, 3)), this.materials.moon)
+        this.shapes.Moon.draw(context, program_state, Mat4.translation(Math.cos(t / 20 + Math.PI) * 40, Math.sin(t / 20 + Math.PI) * 40, 5).times(Mat4.scale(3, 3, 3)), this.materials.moon)
         //place the light source is there is a block that is a light
         this.blocks.forEach(item => {
             if (item.material === this.materials.cube_light) {
@@ -796,18 +915,6 @@ export class UCLACraft_Base extends Scene {
                 program_state.lights.push(new Light(vec4(light[0] * 2, light[1] * 2, light[2] * 2, 0), color(1, 1, 1, 1), 5))
             }
         });
-
-
-        let DayNightBool = true;
-        let temp_ambient = 0.5 + 0.5 * Math.sin(t / 20);
-        if(temp_ambient >=0.5)
-        {
-            DayNightBool = true;
-        }
-        else if(temp_ambient < 0.5)
-        {
-            DayNightBool = false;
-        }
         //add lighting effect to the floor
         //this.placeGroundLighting(context, program_state);
 
@@ -892,18 +999,27 @@ export class UCLACraft_Base extends Scene {
             }
         })
     }
+
 }
 
 
 
 export class UCLACraft extends UCLACraft_Base {
 
-    
+
 
     createScene(context, program_state) {
-
         const t = this.t = program_state.animation_time / 1000;
         let temp_ambient = 0.5 + 0.5 * Math.sin(t / 20);
+        if(temp_ambient > 0.6)
+        {
+            this.night = false;
+        }
+        else
+        {
+            this.night = true;
+        }
+        this.flipMaterial()
         let model_transform = Mat4.identity();
 
         /// *********  BACKGROUND SCENE *********
@@ -925,7 +1041,7 @@ export class UCLACraft extends UCLACraft_Base {
         sky_transform = sky_transform.times(Mat4.scale(50, 0.2, 50));
         this.shapes.box.draw(context, program_state, sky_transform, this.materials.up.override({ ambient: temp_ambient }));
 
-        //right wall 
+        //right wall
         sky_transform = Mat4.identity();
 
 
@@ -933,7 +1049,7 @@ export class UCLACraft extends UCLACraft_Base {
         sky_transform = sky_transform.times(Mat4.scale(0.2, 50, 50));
         this.shapes.box.draw(context, program_state, sky_transform, this.materials.right.override({ ambient: temp_ambient }));
 
-        //left wall 
+        //left wall
         sky_transform = Mat4.identity();
 
 
@@ -941,7 +1057,7 @@ export class UCLACraft extends UCLACraft_Base {
         sky_transform = sky_transform.times(Mat4.scale(0.2, 50, 50));
         this.shapes.box.draw(context, program_state, sky_transform, this.materials.left.override({ ambient: temp_ambient }));
 
-        //back wall 
+        //back wall
         sky_transform = Mat4.identity();
 
 
@@ -949,7 +1065,7 @@ export class UCLACraft extends UCLACraft_Base {
         sky_transform = sky_transform.times(Mat4.scale(50, 50, 0.2));
         this.shapes.box.draw(context, program_state, sky_transform, this.materials.back.override({ ambient: temp_ambient }));
 
-        //front wall 
+        //front wall
         sky_transform = Mat4.identity();
 
         sky_transform = sky_transform.times(Mat4.translation(0, 0, 50));
@@ -960,7 +1076,6 @@ export class UCLACraft extends UCLACraft_Base {
 
 
     }
-
 
     display(context, program_state) {
 
@@ -981,7 +1096,6 @@ export class UCLACraft extends UCLACraft_Base {
         //this.drawfloor(context, program_state);
 
         this.getPointing_at(program_state); //fill in this.selected this.outlines
-
         this.drawSelected(context, program_state);//draw selected
         this.drawCursor(context, program_state);//draw cursor
         this.drawOutline(context, program_state); //draw outlines
