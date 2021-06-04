@@ -63,6 +63,8 @@ export class UCLACraft_Base extends Scene {
         const phong = new defs.Phong_Shader();
         const texturephong = new defs.Textured_Phong();
         const shadow_shader = new Shadow_Textured_Phong_Shader(10)
+        let DayNightBool = true;
+
 
         this.materials = {
             grass: new Material(shadow_shader,
@@ -205,6 +207,10 @@ export class UCLACraft_Base extends Scene {
 
         // To make sure texture initialization only does once
         this.init_ok = false;
+    }
+
+    day_night_bool(){
+
     }
 
     add_mouse_controls(canvas) {
@@ -789,6 +795,18 @@ export class UCLACraft_Base extends Scene {
                 program_state.lights.push(new Light(vec4(light[0] * 2, light[1] * 2, light[2] * 2, 0), color(1, 1, 1, 1), 5))
             }
         });
+
+
+        let DayNightBool = true;
+        let temp_ambient = 0.5 + 0.5 * Math.sin(t / 20);
+        if(temp_ambient >=0.5)
+        {
+            DayNightBool = true;
+        }
+        else if(temp_ambient < 0.5)
+        {
+            DayNightBool = false;
+        }
         //add lighting effect to the floor
         //this.placeGroundLighting(context, program_state);
 
@@ -879,7 +897,7 @@ export class UCLACraft_Base extends Scene {
 
 export class UCLACraft extends UCLACraft_Base {
 
-
+    
 
     createScene(context, program_state) {
 
