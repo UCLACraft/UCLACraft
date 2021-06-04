@@ -34,7 +34,11 @@ There are three states you can be in:
 
 Have Fun!
 
-Created By Team UCLACraft for CS174A Spring 2021 final project.
+Created By Team UCLACraft for CS174A Spring 2021 final project:
+- Yiyang Zhou
+- Siwei Yuan
+- Qingyang Li
+- Weizhen Wang
 
 Advanced Features:
 
