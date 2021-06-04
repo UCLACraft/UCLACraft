@@ -912,7 +912,7 @@ export class UCLACraft_Base extends Scene {
             if (item.material === this.materials.cube_light) {
                 //console.log(item.coord)
                 let light = item.coord
-                program_state.lights.push(new Light(vec4(light[0] * 2, light[1] * 2, light[2] * 2, 0), color(1, 1, 1, 1), 5))
+                program_state.lights.push(new Light(vec4(light[0] * 2, light[1] * 2, light[2] * 2, 0), color(1, 1, 1, 1), 50))
             }
         });
         //add lighting effect to the floor
@@ -1011,7 +1011,7 @@ export class UCLACraft extends UCLACraft_Base {
     createScene(context, program_state) {
         const t = this.t = program_state.animation_time / 1000;
         let temp_ambient = 0.5 + 0.5 * Math.sin(t / 20);
-        if(temp_ambient > 0.6)
+        if(temp_ambient > 0.5)
         {
             this.night = false;
         }
