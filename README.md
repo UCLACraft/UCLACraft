@@ -41,7 +41,7 @@ Advanced Features:
 - Mouse Picking (Ray Casting)
 - Shadowing (Multi-pass rendering)
 - Scene Graphs (Multi-object data structures)
-- 
+- Bump Mapping
 
 
 
