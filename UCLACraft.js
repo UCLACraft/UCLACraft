@@ -837,6 +837,7 @@ export class UCLACraft_Base extends Scene {
                 Mat4.translation(Math.cos(t / 20) * 34, Math.sin(t / 20) * 34, 5).times(Mat4.scale(1, 1, 1)),
                 this.light_src.override({ color: light_color }));
         }
+        this.shapes.Moon.draw(context, program_state, Mat4.translation(Math.cos(t / 20 + Math.PI) * 40, Math.sin(t / 20 + Math.PI) * 40, 5).times(Mat4.scale(3, 3, 3)), this.materials.moon)
 
         // for (let i of [-1, 1]) { // Spin the 3D model shapes as well.
         //     const model_transform = Mat4.translation(2 * i, 3, 0)
@@ -906,7 +907,7 @@ export class UCLACraft_Base extends Scene {
         program_state.lights = [new Light(light_position, color(1, 1, 1, 1), 10000)];
         const moonlight_position = vec4(Math.cos(t / 20 + Math.PI) * 40, Math.sin(t / 20 + Math.PI) * 40, 5, 0);
         //program_state.lights = [new Light(moonlight_position, color(1, 1, 1, 1), 10000)]; //TODO: check
-        this.shapes.Moon.draw(context, program_state, Mat4.translation(Math.cos(t / 20 + Math.PI) * 40, Math.sin(t / 20 + Math.PI) * 40, 5).times(Mat4.scale(3, 3, 3)), this.materials.moon)
+        //this.shapes.Moon.draw(context, program_state, Mat4.translation(Math.cos(t / 20 + Math.PI) * 40, Math.sin(t / 20 + Math.PI) * 40, 5).times(Mat4.scale(3, 3, 3)), this.materials.moon)
         //place the light source is there is a block that is a light
         this.blocks.forEach(item => {
             if (item.material === this.materials.cube_light) {
