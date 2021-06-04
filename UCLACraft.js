@@ -69,7 +69,7 @@ export class UCLACraft_Base extends Scene {
             grass: new Material(shadow_shader,
                 {
                     color: color(.5, .5, .5, 1),
-                    ambient: 1, diffusivity: .8, specularity: .3,
+                    ambient: 0.6, diffusivity: .5, specularity: .3,
                     color_texture: new Texture("assets/Grass.jpg"),
                     light_depth_texture: null
                 }),
@@ -148,6 +148,11 @@ export class UCLACraft_Base extends Scene {
                 })
         };
         this.bumped_materials = {
+            floor: new Material(bump_shader, {
+                ambient: 0.5, diffusivity: .5, specularity: .5,
+                texture: new Texture("assets/GroundMud.png"),
+                light_depth_texture: null
+            }),
             grass: new Material(bump_shader,
                 {
                     ambient: 1, diffusivity: .8, specularity: .3,
@@ -175,7 +180,7 @@ export class UCLACraft_Base extends Scene {
                 }),
 
             moon: new Material(new defs.Phong_Shader(),
-                { ambient: 1, diffusivity: 0, specularity: 0, color: hex_color("#dceff5") }),
+                { ambient: 0.5, diffusivity: 0, specularity: 0, color: hex_color("#dceff5") }),
             cube_light: new Material(new defs.Phong_Shader(),
                 { ambient: 1, diffusivity: 0, specularity: 0, color: hex_color("#fde79a") }),
             selected: new Material(phong, {
@@ -837,7 +842,7 @@ export class UCLACraft_Base extends Scene {
                 Mat4.translation(Math.cos(t / 20) * 34, Math.sin(t / 20) * 34, 5).times(Mat4.scale(1, 1, 1)),
                 this.light_src.override({ color: light_color }));
         }
-        this.shapes.Moon.draw(context, program_state, Mat4.translation(Math.cos(t / 20 + Math.PI) * 40, Math.sin(t / 20 + Math.PI) * 40, 5).times(Mat4.scale(3, 3, 3)), this.materials.moon)
+        this.shapes.Moon.draw(context, program_state, Mat4.translation(Math.cos(t / 20 + Math.PI) * 40, Math.sin(t / 20 + Math.PI) * 40, 5).times(Mat4.scale(1, 1, 1)), this.materials.moon)
 
         // for (let i of [-1, 1]) { // Spin the 3D model shapes as well.
         //     const model_transform = Mat4.translation(2 * i, 3, 0)
